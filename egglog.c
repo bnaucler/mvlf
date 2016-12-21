@@ -6,6 +6,8 @@
 #define OPREF "ljusdal.log."
 #define NPREF "ljusdal.log."
 
+#define ERRSTR "ERROR"
+
 #define DLEN 2
 #define MLEN 3
 #define YLEN 4
@@ -13,21 +15,22 @@
 #define FNCH 128
 #define SBCH 32
 
-int dtnum(char *txmon) {
+char m[12][4] = {
+	"jan", "feb", "mar", "apr",
+	"may", "jun", "jul", "aug",
+	"sep", "oct", "nov", "dec"
+};
 
-	if (strcasecmp(txmon, "jan") == 0) return 1;
-	else if (strcasecmp(txmon, "feb") == 0) return 2;
-	else if (strcasecmp(txmon, "mar") == 0) return 3;
-	else if (strcasecmp(txmon, "apr") == 0) return 4;
-	else if (strcasecmp(txmon, "may") == 0) return 5;
-	else if (strcasecmp(txmon, "jun") == 0) return 6;
-	else if (strcasecmp(txmon, "jul") == 0) return 7;
-	else if (strcasecmp(txmon, "aug") == 0) return 8;
-	else if (strcasecmp(txmon, "sep") == 0) return 9;
-	else if (strcasecmp(txmon, "oct") == 0) return 10;
-	else if (strcasecmp(txmon, "nov") == 0) return 11;
-	else if (strcasecmp(txmon, "dec") == 0) return 12;
-	else return 0;
+int mnum(char *txmon) {
+	
+	int a = 0;
+	int alen = sizeof(m) / sizeof(m[0]);
+
+	for (a = 0; a < alen; a++) {
+		if (strcasecmp(txmon, m[a]) == 0) return a + 1;
+	}
+
+	return 0;
 }
 
 char *mknn(char *oname, char *nname) {
@@ -35,7 +38,7 @@ char *mknn(char *oname, char *nname) {
 	int oplen = strlen(OPREF);
 	char *buf = calloc(SBCH, sizeof(char));
 
-	if (strlen(oname) != oplen + DLEN + MLEN + YLEN) return "ERROR";
+	if (strlen(oname) != oplen + DLEN + MLEN + YLEN) return ERRSTR;
 
 	memset(nname, 0, FNCH);
 
@@ -47,13 +50,13 @@ char *mknn(char *oname, char *nname) {
 	memset(buf, 0, SBCH);
 
 	for (a = 0; a < MLEN; a++) { buf[a] = oname[(oplen + DLEN + a)]; }
-	m = dtnum(buf);
+	m = mnum(buf);
 	memset(buf, 0, SBCH);
 
 	for (a = 0; a < YLEN; a++) { buf[a] = oname[(oplen + DLEN + MLEN + a)]; }
 	y = atoi(buf);
 
-	if (d == 0 || m == 0 || y == 0) snprintf(nname, FNCH, "ERROR");
+	if (d == 0 || m == 0 || y == 0) snprintf(nname, FNCH, ERRSTR);
 	else snprintf(nname, FNCH, "%s%04d%02d%02d", NPREF, y, m, d);
 
 	free(buf);
@@ -81,7 +84,11 @@ int main(int argc, char *argv[]) {
 				if (dir->d_name[a] != OPREF[a]) break;
 				if (a == plen - 1) {
 					nname = mknn(dir->d_name, nname);
-					rename(dir->d_name, nname);
+					if (strcasecmp(nname, ERRSTR) == 0) {
+						printf("Error: could not rename %s\n", dir->d_name);
+					} else {
+						rename(dir->d_name, nname);
+					}
 				}
 			}
 		}
