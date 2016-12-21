@@ -4,7 +4,7 @@
 #include <string.h>
 
 #define OPREF "ljusdal.log."
-#define NPREF "ljusdal.log"
+#define NPREF "ljusdal.log."
 
 #define DLEN 2
 #define MLEN 3

@@ -9,6 +9,8 @@
 
 int main(int argc, char *argv[]) {
 
+	if (argc != 2) return 1;
+
 	DIR *d;
 	struct dirent *dir;
 	d = opendir(argv[1]);
