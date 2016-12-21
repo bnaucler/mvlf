@@ -1,8 +1,8 @@
 CC = cc
-TARGET = egglog
-SOURCE = egglog.c
+TARGET = fndman
+SOURCE = fndman.c
 DESTDIR = /usr/bin
-CFLAGS= -Wall -g 
+CFLAGS= -Wall -g
 
 all:
 	$(CC) $(CFLAGS) -o $(TARGET) $(SOURCE)

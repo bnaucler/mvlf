@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <dirent.h>
+#include <unistd.h>
 #include <string.h>
+#include <dirent.h>
 
 #define OPREF "ljusdal.log."
 #define NPREF "ljusdal.log."
@@ -13,6 +14,7 @@
 #define YLEN 4
 
 #define FNCH 128
+#define FPCH 256
 #define SBCH 32
 
 char m[12][4] = {
@@ -22,7 +24,7 @@ char m[12][4] = {
 };
 
 int mnum(char *txmon) {
-	
+
 	int a = 0;
 	int alen = sizeof(m) / sizeof(m[0]);
 
@@ -63,20 +65,41 @@ char *mknn(char *oname, char *nname) {
 	return nname;
 }
 
-int main(int argc, char *argv[]) {
+int usage(char *cmd, char *err, int ret) {
 
-	if (argc != 2) return 1;
+	if (strlen(err) > 0) printf("ERROR: %s\n", err);
+	printf("Usage: %s [dir]\n", cmd);
+
+	exit(ret);
+}
+
+int main(int argc, char *argv[]) {
 
 	DIR *d;
 	struct dirent *dir;
-	d = opendir(argv[1]);
+
+	char *dpath = calloc(FPCH, sizeof(char));
+	char *nname = calloc(FNCH, sizeof(char));
 
 	unsigned int a = 0;
 	int plen = strlen(OPREF);
-	char *nname = calloc(FNCH, sizeof(char));
+
+	if (argc > 2) usage(argv[0], "", 1);
+	else if (argc == 1) dpath = getcwd(dpath, FPCH);
+	else {
+		if (strlen(argv[1]) > FPCH) {
+			usage(argv[0], "Your directory paths are messed up", 1);
+		} else {
+			strcpy(dpath, argv[1]);
+		}
+	}
+
+	d = opendir(dpath);
+	if (dpath[strlen(dpath) - 1] != '/') dpath[strlen(dpath)] = '/';
 
 	if (!d) {
-		return 1;
+		usage(argv[0], "Could not read directory", 1);
+
 	} else {
 		while((dir = readdir(d)) != NULL) {
 
@@ -85,9 +108,11 @@ int main(int argc, char *argv[]) {
 				if (a == plen - 1) {
 					nname = mknn(dir->d_name, nname);
 					if (strcasecmp(nname, ERRSTR) == 0) {
-						printf("Error: could not rename %s\n", dir->d_name);
+						// printf("Error: could not rename %s\n", dir->d_name);
 					} else {
-						rename(dir->d_name, nname);
+						// rename(dir->d_name, nname);
+						printf("%s%s\t%s%s\n", 
+								dpath, dir->d_name, dpath, nname);
 					}
 				}
 			}
