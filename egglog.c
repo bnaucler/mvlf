@@ -10,7 +10,7 @@
 #define MLEN 3
 #define YLEN 4
 
-#define FNLEN 128
+#define FNCH 128
 #define SBCH 32
 
 int dtnum(char *txmon) {
@@ -37,7 +37,7 @@ char *mknn(char *oname, char *nname) {
 
 	if (strlen(oname) != oplen + DLEN + MLEN + YLEN) return "ERROR";
 
-	memset(nname, 0, FNLEN);
+	memset(nname, 0, FNCH);
 
 	int a = 0;
 	int y = 0, m = 2, d = 0;
@@ -53,8 +53,8 @@ char *mknn(char *oname, char *nname) {
 	for (a = 0; a < YLEN; a++) { buf[a] = oname[(oplen + DLEN + MLEN + a)]; }
 	y = atoi(buf);
 
-	if (d == 0 || m == 0 || y == 0) snprintf(nname, FNLEN, "ERROR");
-	else snprintf(nname, FNLEN, "%s%04d%02d%02d", NPREF, y, m, d);
+	if (d == 0 || m == 0 || y == 0) snprintf(nname, FNCH, "ERROR");
+	else snprintf(nname, FNCH, "%s%04d%02d%02d", NPREF, y, m, d);
 
 	free(buf);
 	return nname;
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
 
 	unsigned int a = 0;
 	int plen = strlen(OPREF);
-	char *nname = calloc(FNLEN, sizeof(char));
+	char *nname = calloc(FNCH, sizeof(char));
 
 	if (!d) {
 		return 1;
