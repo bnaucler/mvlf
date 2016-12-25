@@ -1,6 +1,6 @@
 CC = cc
-TARGET = fndman
-SOURCE = fndman.c
+TARGET = renlog
+SOURCE = renlog.c
 DESTDIR = /usr/bin
 CFLAGS= -Wall -g
 

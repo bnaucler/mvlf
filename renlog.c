@@ -4,6 +4,8 @@
 #include <string.h>
 #include <dirent.h>
 
+#define VER 0.1
+
 #define OPREF "ljusdal.log."
 #define NPREF "ljusdal.log."
 
@@ -14,8 +16,9 @@
 #define MLEN 3
 #define YLEN 4
 
-#define FPCH 256
+#define MBCH 256
 #define SBCH 32
+#define PDCH 10
 
 char ms[12][4] = {
 	"jan", "feb", "mar", "apr",
@@ -32,12 +35,12 @@ char ml[12][10] = {
 char ds[7][4] = {
 	"mon", "tue", "wed", "thu",
 	"fri", "sat", "sun"
-}
+};
 
 char dl[7][10] = {
 	"monday", "tuesday", "wednesday", "thursday",
 	"friday", "saturday", "sunday"
-}
+};
 
 int mnum(char *txmon) {
 
@@ -58,7 +61,7 @@ char *mknn(char *oname, char *nname) {
 
 	if (strlen(oname) != oplen + DLEN + MLEN + YLEN) return ERRSTR;
 
-	memset(nname, 0, FPCH);
+	memset(nname, 0, MBCH);
 
 	int a = 0;
 	int y = 0, m = 2, d = 0;
@@ -74,8 +77,8 @@ char *mknn(char *oname, char *nname) {
 	for (a = 0; a < YLEN; a++) { buf[a] = oname[(oplen + DLEN + MLEN + a)]; }
 	y = atoi(buf);
 
-	if (d == 0 || m == 0 || y == 0) snprintf(nname, FPCH, ERRSTR);
-	else snprintf(nname, FPCH, "%s%04d%02d%02d", NPREF, y, m, d);
+	if (d == 0 || m == 0 || y == 0) snprintf(nname, MBCH, ERRSTR);
+	else snprintf(nname, MBCH, "%s%04d%02d%02d", NPREF, y, m, d);
 
 	free(buf);
 	return nname;
@@ -84,8 +87,13 @@ char *mknn(char *oname, char *nname) {
 int usage(char *cmd, char *err, int ret) {
 
 	if (strlen(err) > 0) printf("ERROR: %s\n", err);
-	printf("");
-	printf("Usage: %s [dir]\n", cmd);
+	printf("REName LOGfiles v%.1f\n", VER);
+	printf("Usage: %s [-hiopf] [dir]\n", cmd);
+	printf("	-h: Show this text\n");
+	printf("	-i: Input pattern\n");
+	printf("	-o: Output pattern\n");
+	printf("	-p: Input prefix\n");
+	printf("	-r: Output prefix\n");
 
 	exit(ret);
 }
@@ -95,31 +103,56 @@ int main(int argc, char *argv[]) {
 	DIR *d;
 	struct dirent *dir;
 
-	char *dpath = calloc(FPCH, sizeof(char));
-	char *oname = calloc(FPCH, sizeof(char));
-	char *nname = calloc(FPCH, sizeof(char));
-	char *buf = calloc(FPCH, sizeof(char));
+	char *dpath = calloc(MBCH, sizeof(char));
+	char *oname = calloc(MBCH, sizeof(char));
+	char *nname = calloc(MBCH, sizeof(char));
+	char *buf = calloc(MBCH, sizeof(char));
+
+	char *ipat = calloc(PDCH + 1, sizeof(char));
+	char *opat = calloc(PDCH + 1, sizeof(char));
+
+	char *ipref = calloc(MBCH, sizeof(char));
+	char *opref = calloc(MBCH, sizeof(char));
 
 	unsigned int a = 0;
 	int plen = strlen(OPREF);
+	int optc;
 
-	while((optc = getopt(argc, argv, "d:i:o:p:f:")) != -1) {
+	while((optc = getopt(argc, argv, "hi:o:p:r:")) != -1) {
 		switch (optc) {
 
-			default:
+			case 'h':
 				usage(argv[0], "", 0);
+				break;
+
+			case 'i':
+				strncpy(ipat, optarg, PDCH);
+				break;
+
+			case 'o':
+				strncpy(opat, optarg, PDCH);
+				break;
+
+			case 'p':
+				strncpy(ipref, optarg, MBCH);
+				break;
+
+			case 'r':
+				strncpy(opref, optarg, MBCH);
+				break;
+
+			default:
+				usage(argv[0], "", 1);
 				break;
 		}
 	}
 
-	if (argc > 2) usage(argv[0], "Too many arguments", 1);
-	else if (argc == 1) dpath = getcwd(dpath, FPCH);
-	else {
-		if (strlen(argv[1]) > (FPCH + plen + YLEN + MLEN + DLEN + 1)) {
-			usage(argv[0], "Your directory paths are messed up", 1);
-		} else {
-			strcpy(dpath, argv[1]);
-		}
+	if (argc > optind + 1) {
+		usage(argv[0], "Too many arguments", 1);
+	} else if (argc > optind) { 
+		strcpy(dpath, argv[1]);
+	} else {
+		dpath = getcwd(dpath, MBCH);
 	}
 
 	if (dpath[strlen(dpath) - 1] != DDIV) dpath[strlen(dpath)] = DDIV;
@@ -134,8 +167,8 @@ int main(int argc, char *argv[]) {
 			for (a = 0; a < plen; a++) {
 				if (dir->d_name[a] != OPREF[a]) break;
 				if (a == plen - 1) {
-					snprintf(oname, FPCH, "%s%s", dpath, dir->d_name);
-					snprintf(nname, FPCH, "%s%s", dpath, mknn(dir->d_name, buf));
+					snprintf(oname, MBCH, "%s%s", dpath, dir->d_name);
+					snprintf(nname, MBCH, "%s%s", dpath, mknn(dir->d_name, buf));
 					if (strcasecmp(nname, ERRSTR) == 0) {
 						printf("Error: could not rename %s\n", oname);
 					} else {
