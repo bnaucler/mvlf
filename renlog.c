@@ -1,7 +1,34 @@
+/*
+
+	renlog.c - Rename logfiles (with date format conversion)
+
+	Björn Westerberg Nauclér (mail@bnaucler.se) 2016
+	License: MIT
+
+	Pattern syntax:
+	Y = Year (1999, 2003...)
+	y = Year shorthand (99, 03...)
+
+	M = Month (January, February...)
+	m = Month shorthand (Jan, Feb...)
+	n = Month number (01, 02...)
+
+	D = Day (Monday, Tuesday..)
+	d = Day shorthand (Mon, Tue...)
+	t = Date (31, 01...)
+
+	Examples for matching patterns:
+	[prefix.]2015-03-09	- Y-n-t
+	[prefix.]Mon26Dec16 - dtmy
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
+#include <ctype.h>
 #include <dirent.h>
 
 #define VER 0.1
@@ -9,8 +36,17 @@
 #define OPREF "ljusdal.log."
 #define NPREF "ljusdal.log."
 
-#define ERRSTR "ERROR"
+#define YL 'Y'
+#define YS 'y'
+#define ML 'M'
+#define MS 'm'
+#define MN 'n'
+#define DL 'D'
+#define DS 'd'
+#define DT 't'
+
 #define DDIV '/'
+#define ERRSTR "ERROR"
 
 #define DLEN 2
 #define MLEN 3
@@ -49,6 +85,7 @@ int mnum(char *txmon) {
 
 	for (a = 0; a < alen; a++) {
 		if (strcasecmp(txmon, ms[a]) == 0) return a + 1;
+		if (strcasecmp(txmon, ml[a]) == 0) return a + 1;
 	}
 
 	return 0;
@@ -88,7 +125,8 @@ int usage(char *cmd, char *err, int ret) {
 
 	if (strlen(err) > 0) printf("ERROR: %s\n", err);
 	printf("REName LOGfiles v%.1f\n", VER);
-	printf("Usage: %s [-hiopf] [dir]\n", cmd);
+	printf("Usage: %s [-dhiopf] [dir]\n", cmd);
+	printf("	-d: Output directory\n");
 	printf("	-h: Show this text\n");
 	printf("	-i: Input pattern\n");
 	printf("	-o: Output pattern\n");
@@ -98,14 +136,42 @@ int usage(char *cmd, char *err, int ret) {
 	exit(ret);
 }
 
+int pval(char *p) {
+
+	int len = strlen(p);
+	int hasy = 0, hasm = 0, hasd = 0;
+
+	for(int a = 0; a < len; a++) {
+		if((p[a] == YL || p[a] == YS) && hasy == 0)
+			hasy++;
+		else if((p[a] == ML || p[a] == MS) && hasm == 0)
+			hasm++;
+		else if((p[a] == DL || p[a] == DS) && hasd == 0)
+			hasd++;
+		else if(p[a] == DT)
+			continue;
+		else if (!isalpha(p[a]) && !isdigit(p[a]))
+			continue;
+		else
+			return 1;
+	}
+
+	return 0;
+}
+
 int main(int argc, char *argv[]) {
 
 	DIR *d;
 	struct dirent *dir;
 
-	char *dpath = calloc(MBCH, sizeof(char));
+	// Can we reduce the number of string vars?
+	char *ipath = calloc(MBCH, sizeof(char));
+	char *opath = calloc(MBCH, sizeof(char));
+
+	// Rename oname and nname for consistency
 	char *oname = calloc(MBCH, sizeof(char));
 	char *nname = calloc(MBCH, sizeof(char));
+
 	char *buf = calloc(MBCH, sizeof(char));
 
 	char *ipat = calloc(PDCH + 1, sizeof(char));
@@ -118,8 +184,12 @@ int main(int argc, char *argv[]) {
 	int plen = strlen(OPREF);
 	int optc;
 
-	while((optc = getopt(argc, argv, "hi:o:p:r:")) != -1) {
+	while((optc = getopt(argc, argv, "d:hi:o:p:r:")) != -1) {
 		switch (optc) {
+
+			case 'd':
+				strncpy(opath, optarg, PDCH);
+				break;
 
 			case 'h':
 				usage(argv[0], "", 0);
@@ -149,14 +219,21 @@ int main(int argc, char *argv[]) {
 
 	if (argc > optind + 1) {
 		usage(argv[0], "Too many arguments", 1);
-	} else if (argc > optind) { 
-		strcpy(dpath, argv[1]);
+	} else if (argc > optind) {
+		strcpy(ipath, argv[1]);
 	} else {
-		dpath = getcwd(dpath, MBCH);
+		ipath = getcwd(ipath, MBCH);
 	}
 
-	if (dpath[strlen(dpath) - 1] != DDIV) dpath[strlen(dpath)] = DDIV;
-	d = opendir(dpath);
+	if (ipath[strlen(ipath) - 1] != DDIV) ipath[strlen(ipath)] = DDIV;
+	d = opendir(ipath);
+
+	if (!pval(ipat)) usage(argv[0], "Invalid input pattern", 1);
+	if (!pval(opat)) usage(argv[0], "Invalid output pattern", 1);
+
+	if (strlen(opath) == 0) strcpy(opath, ipath);
+	else if (ipath[strlen(opath) - 1] != DDIV)
+		ipath[strlen(opath)] = DDIV;
 
 	if (!d) {
 		usage(argv[0], "Could not read directory", 1);
@@ -167,8 +244,8 @@ int main(int argc, char *argv[]) {
 			for (a = 0; a < plen; a++) {
 				if (dir->d_name[a] != OPREF[a]) break;
 				if (a == plen - 1) {
-					snprintf(oname, MBCH, "%s%s", dpath, dir->d_name);
-					snprintf(nname, MBCH, "%s%s", dpath, mknn(dir->d_name, buf));
+					snprintf(oname, MBCH, "%s%s", ipath, dir->d_name);
+					snprintf(nname, MBCH, "%s%s", opath, mknn(dir->d_name, buf));
 					if (strcasecmp(nname, ERRSTR) == 0) {
 						printf("Error: could not rename %s\n", oname);
 					} else {
