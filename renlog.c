@@ -132,31 +132,49 @@ int usage(char *cmd, char *err, int ret) {
 	printf("	-o: Output pattern\n");
 	printf("	-p: Input prefix\n");
 	printf("	-r: Output prefix\n");
+	printf("	-t: Test run\n");
 
 	exit(ret);
 }
 
-int pval(char *p) {
+int vpat(char *p) {
 
 	int len = strlen(p);
 	int hasy = 0, hasm = 0, hasd = 0;
 
 	for(int a = 0; a < len; a++) {
-		if((p[a] == YL || p[a] == YS) && hasy == 0)
-			hasy++;
-		else if((p[a] == ML || p[a] == MS) && hasm == 0)
-			hasm++;
-		else if((p[a] == DL || p[a] == DS) && hasd == 0)
-			hasd++;
-		else if(p[a] == DT)
-			continue;
-		else if (!isalpha(p[a]) && !isdigit(p[a]))
-			continue;
-		else
-			return 1;
+		if((p[a] == YL || p[a] == YS) && hasy == 0) hasy++;
+		else if((p[a] == ML || p[a] == MS) && hasm == 0) hasm++;
+		else if((p[a] == DL || p[a] == DS) && hasd == 0) hasd++;
+		else if(p[a] == DT) continue;
+		else if (!isalpha(p[a]) && !isdigit(p[a])) continue;
+		else return -1;
 	}
 
 	return 0;
+}
+
+int dtch(char *ipat, char *opat) {
+
+	int ilen = strlen(ipat);
+	int olen = strlen(opat);
+
+	int ohas = 0;
+
+	for(int a = 0; a < olen; a++) {
+		if(opat[a] == DT) {
+			ohas++;
+			break;
+		}
+	}
+	
+	if (!ohas) return 0;
+
+	for(int a = 0; a < ilen; a++) {
+		if(ipat[a] == DT) return 0;
+	}
+
+	return 1;
 }
 
 int main(int argc, char *argv[]) {
@@ -182,9 +200,10 @@ int main(int argc, char *argv[]) {
 
 	unsigned int a = 0;
 	int plen = strlen(OPREF);
+	int testr = 0;
 	int optc;
 
-	while((optc = getopt(argc, argv, "d:hi:o:p:r:")) != -1) {
+	while((optc = getopt(argc, argv, "d:hi:o:p:r:t")) != -1) {
 		switch (optc) {
 
 			case 'd':
@@ -205,6 +224,10 @@ int main(int argc, char *argv[]) {
 
 			case 'p':
 				strncpy(ipref, optarg, MBCH);
+				break;
+
+			case 't':
+				testr++;
 				break;
 
 			case 'r':
@@ -228,8 +251,16 @@ int main(int argc, char *argv[]) {
 	if (ipath[strlen(ipath) - 1] != DDIV) ipath[strlen(ipath)] = DDIV;
 	d = opendir(ipath);
 
-	if (!pval(ipat)) usage(argv[0], "Invalid input pattern", 1);
-	if (!pval(opat)) usage(argv[0], "Invalid output pattern", 1);
+	// Testing patterns
+	printf("ipat: %s\n", ipat);
+	printf("opat: %s\n", opat);
+
+	if (vpat(ipat) < 0) usage(argv[0], "Invalid input pattern", 1);
+	if (vpat(opat) < 0) usage(argv[0], "Invalid output pattern", 1);
+	if (dtch(ipat, opat) != 0)
+		usage(argv[0], "Cannot make date numbers from thin air", 1);
+	printf("OK\n");
+	exit(0);
 
 	if (strlen(opath) == 0) strcpy(opath, ipath);
 	else if (ipath[strlen(opath) - 1] != DDIV)
@@ -249,8 +280,8 @@ int main(int argc, char *argv[]) {
 					if (strcasecmp(nname, ERRSTR) == 0) {
 						printf("Error: could not rename %s\n", oname);
 					} else {
-						// rename(dir->d_name, nname);
-						printf("%s\t%s\n", oname, nname);
+						if (testr) printf("%s\t%s\n", oname, nname);
+						// else rename(dir->d_name, nname);
 					}
 				}
 			}
