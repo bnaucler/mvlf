@@ -27,14 +27,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
+// #include <errno.h>
 #include <ctype.h>
 #include <dirent.h>
 
 #define VER 0.1
 
-// #define OPREF "ljusdal.log."
-// #define NPREF "ljusdal.log."
+#define MAXY 2100
+#define MINY 1900
 
 #define YL 'Y'
 #define YS 'y'
@@ -51,11 +51,12 @@
 #define ISPAT "tmY"
 #define OSPAT "Y-n-t"
 
-#define TLEN 2
-#define MSLEN 3
-#define MNLEN 2
 #define YLLEN 4
 #define YSLEN 2
+#define MSLEN 3
+#define MNLEN 2
+#define DSLEN 3
+#define TLEN 2
 
 #define MBCH 256
 #define SBCH 32
@@ -83,48 +84,31 @@ char dl[7][10] = {
 	"friday", "saturday", "sunday"
 };
 
-int mnum(char *txmon) {
+int mnum(char *txm) {
 
-	int a = 0;
+	unsigned int a = 0;
 	int alen = sizeof(ms) / sizeof(ms[0]);
 
 	for (a = 0; a < alen; a++) {
-		if (strcasecmp(txmon, ms[a]) == 0) return a + 1;
-		if (strcasecmp(txmon, ml[a]) == 0) return a + 1;
+		if (strcasecmp(txm, ms[a]) == 0) return a + 1;
+		if (strcasecmp(txm, ml[a]) == 0) return a + 1;
 	}
 
 	return 0;
 }
 
-// char *mknn(char *iname, char *oname) {
+int dnum(char *txd) {
 
-// 	int oplen = strlen(OPREF);
-// 	char *buf = calloc(SBCH, sizeof(char));
+	unsigned int a = 0;
+	int alen = sizeof(ds) / sizeof(ds[0]);
 
-// 	if (strlen(iname) != oplen + DLEN + MLEN + YLEN) return ERRSTR;
+	for (a = 0; a < alen; a++) {
+		if (strcasecmp(txd, ds[a]) == 0) return a + 1;
+		if (strcasecmp(txd, dl[a]) == 0) return a + 1;
+	}
 
-// 	memset(oname, 0, MBCH);
-
-// 	int a = 0;
-// 	int y = 0, m = 2, d = 0;
-
-// 	for (a = 0; a < DLEN; a++) { buf[a] = iname[(oplen + a)]; }
-// 	d = atoi(buf);
-// 	memset(buf, 0, SBCH);
-
-// 	for (a = 0; a < MLEN; a++) { buf[a] = iname[(oplen + DLEN + a)]; }
-// 	m = mnum(buf);
-// 	memset(buf, 0, SBCH);
-
-// 	for (a = 0; a < YLEN; a++) { buf[a] = iname[(oplen + DLEN + MLEN + a)]; }
-// 	y = atoi(buf);
-
-// 	if (d == 0 || m == 0 || y == 0) snprintf(oname, MBCH, ERRSTR);
-// 	else snprintf(oname, MBCH, "%s%04d%02d%02d", NPREF, y, m, d);
-
-// 	free(buf);
-// 	return oname;
-// }
+	return 0;
+}
 
 int usage(char *cmd, char *err, int ret, int verb) {
 
@@ -151,7 +135,7 @@ int vpat(char *p) {
 
 	for(int a = 0; a < len; a++) {
 		if((p[a] == YL || p[a] == YS) && hasy == 0) hasy++;
-		else if((p[a] == ML || p[a] == MS) && hasm == 0) hasm++;
+		else if((p[a] == ML || p[a] == MS || p[a] == MN) && hasm == 0) hasm++;
 		else if((p[a] == DL || p[a] == DS) && hasd == 0) hasd++;
 		else if(p[a] == DT) continue;
 		else if (!isalpha(p[a]) && !isdigit(p[a])) continue;
@@ -187,48 +171,80 @@ int dtch(char *ipat, char *opat) {
 char *mknn(char *oiname, char *oname, char *ipref, 
 	char *opref, char *ipat, char *opat) {
 
+	char *buf = calloc(SBCH, sizeof(char));
+
 	// Do not distort referenced data
 	char *iname = calloc(MBCH, sizeof(char));
 	strcpy(iname, oiname);
 
-	char *buf = calloc(SBCH, sizeof(char));
-	char *isuf = calloc(SBCH, sizeof(char));
-
-	int ilen = strlen(iname);
 	int iplen = strlen(ipat);
-	int isst = strlen(ipref);
 
 	int a = 0, b = 0, c = 0;
 	int y = 0, m = 0, d = 0, t = 0;
 
-	// CONTINUE HERE
-	for (a = 0; a < iplen; a++) {
-		if(ipat[a] == 'Y') {
+	iname += strlen(ipref);
 
-			for(b = 0; b < YLLEN; b++) {
-				buf[b] = isuf[(b+c)];
-			
-			}
+	printf("iname: %s\n", iname);
+	printf("ipref: %s\n", ipref);
+	printf("ipat: %s, opat: %s\n", ipat, opat);
+
+	for (a = 0; a < iplen; a++) {
+		if(ipat[a] == YL) {
+
+			for(b = 0; b < YLLEN; b++) { buf[b] = iname[(b+c)]; }
 			y = atoi(buf);
 			c += YLLEN;
 
+		} else if(ipat[a] == YS) {
+			// NEEDS STRTOL
+			c += YSLEN;
+
+		} else if(ipat[a] == ML) {
+			// TO BE CONTINUED
+			
+		} else if(ipat[a] == MS) {
+
+			for(b = 0; b < MSLEN; b++) { buf[b] = iname[(b+c)]; }
+			m = mnum(buf);
+			c += MSLEN;
+
+		} else if(ipat[a] == MN) {
+
+			for(b = 0; b < MNLEN; b++) { buf[b] = iname[(b+c)]; }
+			m = atoi(buf);
+			c += MNLEN;
+
+		} else if(ipat[a] == DL) {
+			// TO BE CONTINUED
+
+		} else if(ipat[a] == DS) {
+
+			for(b = 0; b < DSLEN; b++) { buf[b] = iname[(b+c)]; }
+			d = dnum(buf);
+			c += DSLEN;
+
+		} else if(ipat[a] == DT) {
+
+			for(b = 0; b < TLEN; b++) { buf[b] = iname[(b+c)]; }
+			t = atoi(buf);
+			c += TLEN;
+
 		} else {
-			oname[c] = ipat[a];
 			c++;
 		}
 
 		memset(buf, 0, SBCH);
 	}
 
-	// printf("iname: %s\n", iname);
-	// printf("ipref: %d, %s\n", isst, ipref);
+	printf("y: %d, m: %d, d: %d, t: %d\n", y, m, d, t);
+	printf("Day: %s, Month: %s\n", dl[(d-1)], ml[(m-1)]);
 	
-	for(int a = isst; a < ilen; a++) {
-		putchar(iname[a]);
+	if(y < MINY || y > MAXY || m < 1 || m > 12 ||
+			d < 1 || d > 7 || t < 1 || t > 31) {
+		return ERRSTR;	
+	} else {
+		return oname;
 	}
-	putchar('\n');
-
-	return oname;
 }
 
 int main(int argc, char *argv[]) {
@@ -323,7 +339,7 @@ int main(int argc, char *argv[]) {
 	if (strncmp(ipref, opref, MBCH) == 0 && 
 			strncmp(ipat, opat, PDCH) == 0)
 			usage(argv[0], "Input and output is exact match", 1, verb);
-	if (dtch(ipat, opat) != 0)
+	if (dtch(ipat, opat))
 		usage(argv[0], "Cannot make date numbers from thin air", 1, verb);
 
 	// Check for specified output dir
