@@ -121,18 +121,20 @@ char *mknn(char *oname, char *nname) {
 	return nname;
 }
 
-int usage(char *cmd, char *err, int ret) {
+int usage(char *cmd, char *err, int ret, int verb) {
 
-	if (strlen(err) > 0) printf("ERROR: %s\n", err);
+	if (strlen(err) > 0 && verb > -1) fprintf(stderr, "ERROR: %s\n", err);
 	printf("REName LOGfiles v%.1f\n", VER);
-	printf("Usage: %s [-dhiopf] [dir]\n", cmd);
+	printf("Usage: %s [-dhioprtv] [dir]\n", cmd);
 	printf("	-d: Output directory\n");
 	printf("	-h: Show this text\n");
 	printf("	-i: Input pattern\n");
 	printf("	-o: Output pattern\n");
 	printf("	-p: Input prefix\n");
 	printf("	-r: Output prefix\n");
+	printf("	-q: Quiet mode\n");
 	printf("	-t: Test run\n");
+	printf("	-v: Verbose mode\n");
 
 	exit(ret);
 }
@@ -200,7 +202,7 @@ int main(int argc, char *argv[]) {
 
 	unsigned int a = 0;
 	int plen = strlen(OPREF);
-	int testr = 0;
+	int testr = 0, verb = 0;
 	int optc;
 
 	while((optc = getopt(argc, argv, "d:hi:o:p:r:t")) != -1) {
@@ -211,7 +213,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			case 'h':
-				usage(argv[0], "", 0);
+				usage(argv[0], "", 0, verb);
 				break;
 
 			case 'i':
@@ -226,39 +228,51 @@ int main(int argc, char *argv[]) {
 				strncpy(ipref, optarg, MBCH);
 				break;
 
-			case 't':
-				testr++;
-				break;
-
 			case 'r':
 				strncpy(opref, optarg, MBCH);
 				break;
 
+			case 'q':
+				verb--;
+				break;
+
+			case 't':
+				testr++;
+				break;
+
+			case 'v':
+				verb++;
+				break;
+
 			default:
-				usage(argv[0], "", 1);
+				usage(argv[0], "", 1, verb);
 				break;
 		}
 	}
 
+	// Input verification
 	if (argc > optind + 1) {
-		usage(argv[0], "Too many arguments", 1);
+		usage(argv[0], "Too many arguments", 1, verb);
 	} else if (argc > optind) {
 		strcpy(ipath, argv[1]);
 	} else {
 		ipath = getcwd(ipath, MBCH);
 	}
 
+	// Path formatting
 	if (ipath[strlen(ipath) - 1] != DDIV) ipath[strlen(ipath)] = DDIV;
 	d = opendir(ipath);
 
-	// Testing patterns
-	printf("ipat: %s\n", ipat);
-	printf("opat: %s\n", opat);
-
-	if (vpat(ipat) < 0) usage(argv[0], "Invalid input pattern", 1);
-	if (vpat(opat) < 0) usage(argv[0], "Invalid output pattern", 1);
+	// Validate patterns
+	if (vpat(ipat) < 0) usage(argv[0], "Invalid input pattern", 1, verb);
+	if (vpat(opat) < 0) usage(argv[0], "Invalid output pattern", 1, verb);
+	if (strncmp(ipref, opref, MBCH) == 0 && 
+			strncmp(ipat, opat, PDCH) == 0)
+			usage(argv[0], "Input and output is exact match", 1, verb);
 	if (dtch(ipat, opat) != 0)
-		usage(argv[0], "Cannot make date numbers from thin air", 1);
+		usage(argv[0], "Cannot make date numbers from thin air", 1, verb);
+
+	// DEBUG
 	printf("OK\n");
 	exit(0);
 
@@ -267,7 +281,7 @@ int main(int argc, char *argv[]) {
 		ipath[strlen(opath)] = DDIV;
 
 	if (!d) {
-		usage(argv[0], "Could not read directory", 1);
+		usage(argv[0], "Could not read directory", 1, verb);
 
 	} else {
 		while((dir = readdir(d)) != NULL) {
@@ -277,10 +291,10 @@ int main(int argc, char *argv[]) {
 				if (a == plen - 1) {
 					snprintf(oname, MBCH, "%s%s", ipath, dir->d_name);
 					snprintf(nname, MBCH, "%s%s", opath, mknn(dir->d_name, buf));
-					if (strcasecmp(nname, ERRSTR) == 0) {
-						printf("Error: could not rename %s\n", oname);
+					if (strcasecmp(nname, ERRSTR) == 0 && verb < -1) {
+						fprintf(stderr, "Error: could not rename %s\n", oname);
 					} else {
-						if (testr) printf("%s\t%s\n", oname, nname);
+						if (testr || verb) printf("%s\t%s\n", oname, nname);
 						// else rename(dir->d_name, nname);
 					}
 				}
