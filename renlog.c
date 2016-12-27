@@ -33,8 +33,8 @@
 
 #define VER 0.1
 
-#define OPREF "ljusdal.log."
-#define NPREF "ljusdal.log."
+// #define OPREF "ljusdal.log."
+// #define NPREF "ljusdal.log."
 
 #define YL 'Y'
 #define YS 'y'
@@ -48,9 +48,14 @@
 #define DDIV '/'
 #define ERRSTR "ERROR"
 
-#define DLEN 2
-#define MLEN 3
-#define YLEN 4
+#define ISPAT "tmY"
+#define OSPAT "Y-n-t"
+
+#define TLEN 2
+#define MSLEN 3
+#define MNLEN 2
+#define YLLEN 4
+#define YSLEN 2
 
 #define MBCH 256
 #define SBCH 32
@@ -91,35 +96,35 @@ int mnum(char *txmon) {
 	return 0;
 }
 
-char *mknn(char *oname, char *nname) {
+// char *mknn(char *iname, char *oname) {
 
-	int oplen = strlen(OPREF);
-	char *buf = calloc(SBCH, sizeof(char));
+// 	int oplen = strlen(OPREF);
+// 	char *buf = calloc(SBCH, sizeof(char));
 
-	if (strlen(oname) != oplen + DLEN + MLEN + YLEN) return ERRSTR;
+// 	if (strlen(iname) != oplen + DLEN + MLEN + YLEN) return ERRSTR;
 
-	memset(nname, 0, MBCH);
+// 	memset(oname, 0, MBCH);
 
-	int a = 0;
-	int y = 0, m = 2, d = 0;
+// 	int a = 0;
+// 	int y = 0, m = 2, d = 0;
 
-	for (a = 0; a < DLEN; a++) { buf[a] = oname[(oplen + a)]; }
-	d = atoi(buf);
-	memset(buf, 0, SBCH);
+// 	for (a = 0; a < DLEN; a++) { buf[a] = iname[(oplen + a)]; }
+// 	d = atoi(buf);
+// 	memset(buf, 0, SBCH);
 
-	for (a = 0; a < MLEN; a++) { buf[a] = oname[(oplen + DLEN + a)]; }
-	m = mnum(buf);
-	memset(buf, 0, SBCH);
+// 	for (a = 0; a < MLEN; a++) { buf[a] = iname[(oplen + DLEN + a)]; }
+// 	m = mnum(buf);
+// 	memset(buf, 0, SBCH);
 
-	for (a = 0; a < YLEN; a++) { buf[a] = oname[(oplen + DLEN + MLEN + a)]; }
-	y = atoi(buf);
+// 	for (a = 0; a < YLEN; a++) { buf[a] = iname[(oplen + DLEN + MLEN + a)]; }
+// 	y = atoi(buf);
 
-	if (d == 0 || m == 0 || y == 0) snprintf(nname, MBCH, ERRSTR);
-	else snprintf(nname, MBCH, "%s%04d%02d%02d", NPREF, y, m, d);
+// 	if (d == 0 || m == 0 || y == 0) snprintf(oname, MBCH, ERRSTR);
+// 	else snprintf(oname, MBCH, "%s%04d%02d%02d", NPREF, y, m, d);
 
-	free(buf);
-	return nname;
-}
+// 	free(buf);
+// 	return oname;
+// }
 
 int usage(char *cmd, char *err, int ret, int verb) {
 
@@ -128,13 +133,13 @@ int usage(char *cmd, char *err, int ret, int verb) {
 	printf("Usage: %s [-dhioprtv] [dir]\n", cmd);
 	printf("	-d: Output directory\n");
 	printf("	-h: Show this text\n");
-	printf("	-i: Input pattern\n");
-	printf("	-o: Output pattern\n");
+	printf("	-i: Input pattern (default: tmY)\n");
+	printf("	-o: Output pattern (default: Y-n-t)\n");
 	printf("	-p: Input prefix\n");
 	printf("	-r: Output prefix\n");
-	printf("	-q: Quiet mode\n");
 	printf("	-t: Test run\n");
-	printf("	-v: Verbose mode\n");
+	printf("	-v: Increase verbosity level\n");
+	printf("	-q: Decrease verbosity level\n");
 
 	exit(ret);
 }
@@ -179,18 +184,64 @@ int dtch(char *ipat, char *opat) {
 	return 1;
 }
 
+char *mknn(char *oiname, char *oname, char *ipref, 
+	char *opref, char *ipat, char *opat) {
+
+	// Do not distort referenced data
+	char *iname = calloc(MBCH, sizeof(char));
+	strcpy(iname, oiname);
+
+	char *buf = calloc(SBCH, sizeof(char));
+	char *isuf = calloc(SBCH, sizeof(char));
+
+	int ilen = strlen(iname);
+	int iplen = strlen(ipat);
+	int isst = strlen(ipref);
+
+	int a = 0, b = 0, c = 0;
+	int y = 0, m = 0, d = 0, t = 0;
+
+	// CONTINUE HERE
+	for (a = 0; a < iplen; a++) {
+		if(ipat[a] == 'Y') {
+
+			for(b = 0; b < YLLEN; b++) {
+				buf[b] = isuf[(b+c)];
+			
+			}
+			y = atoi(buf);
+			c += YLLEN;
+
+		} else {
+			oname[c] = ipat[a];
+			c++;
+		}
+
+		memset(buf, 0, SBCH);
+	}
+
+	// printf("iname: %s\n", iname);
+	// printf("ipref: %d, %s\n", isst, ipref);
+	
+	for(int a = isst; a < ilen; a++) {
+		putchar(iname[a]);
+	}
+	putchar('\n');
+
+	return oname;
+}
+
 int main(int argc, char *argv[]) {
 
 	DIR *d;
 	struct dirent *dir;
 
-	// Can we reduce the number of string vars?
+	// TODO: Reduce the number of string vars?
 	char *ipath = calloc(MBCH, sizeof(char));
 	char *opath = calloc(MBCH, sizeof(char));
 
-	// Rename oname and nname for consistency
+	char *iname = calloc(MBCH, sizeof(char));
 	char *oname = calloc(MBCH, sizeof(char));
-	char *nname = calloc(MBCH, sizeof(char));
 
 	char *buf = calloc(MBCH, sizeof(char));
 
@@ -201,7 +252,6 @@ int main(int argc, char *argv[]) {
 	char *opref = calloc(MBCH, sizeof(char));
 
 	unsigned int a = 0;
-	int plen = strlen(OPREF);
 	int testr = 0, verb = 0;
 	int optc;
 
@@ -254,7 +304,7 @@ int main(int argc, char *argv[]) {
 	if (argc > optind + 1) {
 		usage(argv[0], "Too many arguments", 1, verb);
 	} else if (argc > optind) {
-		strcpy(ipath, argv[1]);
+		strcpy(ipath, argv[optind]);
 	} else {
 		ipath = getcwd(ipath, MBCH);
 	}
@@ -262,6 +312,10 @@ int main(int argc, char *argv[]) {
 	// Path formatting
 	if (ipath[strlen(ipath) - 1] != DDIV) ipath[strlen(ipath)] = DDIV;
 	d = opendir(ipath);
+
+	// Standard pattern settings (based on eggdrop..)
+	if (strlen(ipat) == 0) strcpy(ipat, ISPAT);
+	if (strlen(opat) == 0) strcpy(opat, OSPAT);
 
 	// Validate patterns
 	if (vpat(ipat) < 0) usage(argv[0], "Invalid input pattern", 1, verb);
@@ -272,10 +326,7 @@ int main(int argc, char *argv[]) {
 	if (dtch(ipat, opat) != 0)
 		usage(argv[0], "Cannot make date numbers from thin air", 1, verb);
 
-	// DEBUG
-	printf("OK\n");
-	exit(0);
-
+	// Check for specified output dir
 	if (strlen(opath) == 0) strcpy(opath, ipath);
 	else if (ipath[strlen(opath) - 1] != DDIV)
 		ipath[strlen(opath)] = DDIV;
@@ -284,18 +335,22 @@ int main(int argc, char *argv[]) {
 		usage(argv[0], "Could not read directory", 1, verb);
 
 	} else {
+		int iplen = strlen(ipref);
+
 		while((dir = readdir(d)) != NULL) {
 
-			for (a = 0; a < plen; a++) {
-				if (dir->d_name[a] != OPREF[a]) break;
-				if (a == plen - 1) {
-					snprintf(oname, MBCH, "%s%s", ipath, dir->d_name);
-					snprintf(nname, MBCH, "%s%s", opath, mknn(dir->d_name, buf));
-					if (strcasecmp(nname, ERRSTR) == 0 && verb < -1) {
-						fprintf(stderr, "Error: could not rename %s\n", oname);
+			for (a = 0; a < iplen; a++) {
+				if (dir->d_name[a] != ipref[a]) break;
+				if (a == iplen - 1) {
+					// printf("%s\n", dir->d_name); // DEBUG
+					// snprintf(iname, MBCH, "%s%s", ipath, dir->d_name);
+					snprintf(oname, MBCH, "%s", mknn(dir->d_name, 
+								buf, ipref, opref, ipat, opat));
+					if (strcasecmp(oname, ERRSTR) == 0 && verb < -1) {
+						fprintf(stderr, "Error: could not rename %s\n", iname);
 					} else {
-						if (testr || verb) printf("%s\t%s\n", oname, nname);
-						// else rename(dir->d_name, nname);
+						if (testr || verb) printf("%s\t%s\n", iname, oname);
+						// else rename(dir->d_name, oname);
 					}
 				}
 			}
