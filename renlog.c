@@ -23,11 +23,12 @@
 
 */
 
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-// #include <errno.h>
 #include <ctype.h>
 #include <dirent.h>
 
@@ -168,6 +169,38 @@ int dtch(char *ipat, char *opat) {
 	return 1;
 }
 
+int dlm(char *suf) {
+
+	int alen = sizeof(dl) / sizeof(dl[0]);
+	int mnlen = sizeof(dl[0]);
+
+	char *buf = calloc(mnlen, sizeof(char));
+
+	for(int a = 0; a < alen; a++) {
+		strcpy(buf, suf);
+		if(strcasestr(suf, dl[a])) return a + 1;
+		memset(buf, 0, mnlen);
+	}
+
+	return -1;
+}
+
+int flm(char *suf) {
+
+	int alen = sizeof(ml) / sizeof(ml[0]);
+	int mnlen = sizeof(ml[0]);
+
+	char *buf = calloc(mnlen, sizeof(char));
+
+	for(int a = 0; a < alen; a++) {
+		strcpy(buf, suf);
+		if(strcasestr(suf, ml[a])) return a + 1;
+		memset(buf, 0, mnlen);
+	}
+
+	return -1;
+}
+
 char *mknn(char *oiname, char *oname, char *ipref, 
 	char *opref, char *ipat, char *opat) {
 
@@ -200,7 +233,8 @@ char *mknn(char *oiname, char *oname, char *ipref,
 			c += YSLEN;
 
 		} else if(ipat[a] == ML) {
-			// TO BE CONTINUED
+			m = flm(iname);
+			c += strlen(ml[(m - 1)]);
 			
 		} else if(ipat[a] == MS) {
 
@@ -215,7 +249,8 @@ char *mknn(char *oiname, char *oname, char *ipref,
 			c += MNLEN;
 
 		} else if(ipat[a] == DL) {
-			// TO BE CONTINUED
+			d = dlm(iname);
+			c += strlen(dl[(d - 1)]);
 
 		} else if(ipat[a] == DS) {
 
