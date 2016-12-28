@@ -1,6 +1,6 @@
 /*
 
-	renlog.c - Rename logfiles (with date format conversion)
+	mvlf.c - Move logfiles (with date format conversion)
 
 	Björn Westerberg Nauclér (mail@bnaucler.se) 2016
 	License: MIT (do whatever you want)
@@ -62,7 +62,7 @@
 
 #define MBCH 256
 #define SBCH 32
-#define PDCH 10
+#define PDCH 16
 
 char ms[12][4] = {
 	"jan", "feb", "mar", "apr",
@@ -115,7 +115,7 @@ int dnum(char *txd) {
 int usage(char *cmd, char *err, int ret, int verb) {
 
 	if (strlen(err) > 0 && verb > -1) fprintf(stderr, "ERROR: %s\n", err);
-	printf("REName LOGfiles v%.1f\n", VER);
+	printf("Move Logfiles v%.1f\n", VER);
 	printf("Usage: %s [-dhioprtv] [dir]\n", cmd);
 	printf("	-d: Output directory\n");
 	printf("	-h: Show this text\n");

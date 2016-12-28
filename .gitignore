@@ -1,6 +1,6 @@
 ljusdal/*
 ljusdalcmp/*
-logs/*
-renlog
+test/*
+mvlf
 insdot
 *.gz

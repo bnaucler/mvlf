@@ -1,6 +1,6 @@
 CC = cc
-TARGET = renlog
-SOURCE = renlog.c
+TARGET = mvlf
+SOURCE = mvlf.c
 DESTDIR = /usr/bin
 CFLAGS= -Wall -g
 
