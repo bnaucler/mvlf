@@ -20,7 +20,7 @@
 
 #define HCENT 2000
 #define LCENT 1900
-#define YBR 60 // Assuming no log files are older than 1960
+#define YBR 60
 
 #define YL 'Y'
 #define YS 'y'
@@ -69,32 +69,6 @@ char dl[7][10] = {
 	"monday", "tuesday", "wednesday", "thursday",
 	"friday", "saturday", "sunday"
 };
-
-int mnum(char *txm) {
-
-	unsigned int a = 0;
-	int alen = sizeof(ms) / sizeof(ms[0]);
-
-	for (a = 0; a < alen; a++) {
-		if (strcasecmp(txm, ms[a]) == 0) return a + 1;
-		if (strcasecmp(txm, ml[a]) == 0) return a + 1;
-	}
-
-	return -1;
-}
-
-int dnum(char *txd) {
-
-	unsigned int a = 0;
-	int alen = sizeof(ds) / sizeof(ds[0]);
-
-	for (a = 0; a < alen; a++) {
-		if (strcasecmp(txd, ds[a]) == 0) return a + 1;
-		if (strcasecmp(txd, dl[a]) == 0) return a + 1;
-	}
-
-	return -1;
-}
 
 int usage(char *cmd, char *err, int ret, int verb) {
 
@@ -157,18 +131,27 @@ int vpatd(char *ipat, char *opat) {
 	return 0;
 }
 
-int fld(char *suf) {
+int mnum(char *txm) {
 
 	unsigned int a = 0;
-	int alen = sizeof(dl) / sizeof(dl[0]);
-	int mnlen = sizeof(dl[0]);
+	int alen = sizeof(ms) / sizeof(ms[0]);
 
-	char *buf = calloc(mnlen, sizeof(char));
+	for (a = 0; a < alen; a++) {
+		if (strcasecmp(txm, ms[a]) == 0) return a + 1;
+		if (strcasecmp(txm, ml[a]) == 0) return a + 1;
+	}
 
-	for(a = 0; a < alen; a++) {
-		strcpy(buf, suf);
-		if(strcasestr(suf, dl[a])) return a + 1;
-		memset(buf, 0, mnlen);
+	return -1;
+}
+
+int dnum(char *txd) {
+
+	unsigned int a = 0;
+	int alen = sizeof(ds) / sizeof(ds[0]);
+
+	for (a = 0; a < alen; a++) {
+		if (strcasecmp(txd, ds[a]) == 0) return a + 1;
+		if (strcasecmp(txd, dl[a]) == 0) return a + 1;
 	}
 
 	return -1;
@@ -185,6 +168,23 @@ int flm(char *suf) {
 	for(a = 0; a < alen; a++) {
 		strcpy(buf, suf);
 		if(strcasestr(suf, ml[a])) return a + 1;
+		memset(buf, 0, mnlen);
+	}
+
+	return -1;
+}
+
+int fld(char *suf) {
+
+	unsigned int a = 0;
+	int alen = sizeof(dl) / sizeof(dl[0]);
+	int mnlen = sizeof(dl[0]);
+
+	char *buf = calloc(mnlen, sizeof(char));
+
+	for(a = 0; a < alen; a++) {
+		strcpy(buf, suf);
+		if(strcasestr(suf, dl[a])) return a + 1;
 		memset(buf, 0, mnlen);
 	}
 
@@ -313,13 +313,13 @@ int main(int argc, char *argv[]) {
 	char *iname = calloc(MBCH, sizeof(char));
 	char *oname = calloc(MBCH, sizeof(char));
 
-	char *buf = calloc(MBCH, sizeof(char));
-
 	char *ipat = calloc(PDCH + 1, sizeof(char));
 	char *opat = calloc(PDCH + 1, sizeof(char));
 
 	char *ipref = calloc(MBCH, sizeof(char));
 	char *opref = calloc(MBCH, sizeof(char));
+
+	char *buf = calloc(MBCH, sizeof(char));
 
 	unsigned int a = 0;
 	int testr = 0, verb = 0;
@@ -397,7 +397,7 @@ int main(int argc, char *argv[]) {
 		usage(argv[0], "Cannot create data from thin air", 1, verb);
 
 	// Check for specified output dir
-	if (strlen(opath) == 0) { 
+	if (strlen(opath) == 0) {
 		strcpy(opath, ipath);
 	} else {
 		if (opath[strlen(opath) - 1] != DDIV) opath[strlen(opath)] = DDIV;
@@ -408,9 +408,9 @@ int main(int argc, char *argv[]) {
 
 	// Check if output prefix has been spcified
 	if (strlen(opref) == 0) strcpy(opref, ipref);
-	
+
 	if (!id) usage(argv[0], "Could not read directory", 1, verb);
-	
+
 	int iplen = strlen(ipref);
 
 	while((dir = readdir(id)) != NULL) {
