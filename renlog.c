@@ -3,7 +3,7 @@
 	renlog.c - Rename logfiles (with date format conversion)
 
 	Björn Westerberg Nauclér (mail@bnaucler.se) 2016
-	License: MIT
+	License: MIT (do whatever you want)
 
 	Pattern syntax:
 	Y = Year (1999, 2003...)
@@ -34,8 +34,9 @@
 
 #define VER 0.1
 
-#define MAXY 2100
-#define MINY 1900
+#define HCENT 2000
+#define LCENT 1900
+#define YBR 60 // Assuming no log files are older than 1960
 
 #define YL 'Y'
 #define YS 'y'
@@ -131,52 +132,56 @@ int usage(char *cmd, char *err, int ret, int verb) {
 
 int vpat(char *p) {
 
+	unsigned int a = 0;
 	int len = strlen(p);
-	int hasy = 0, hasm = 0, hasd = 0;
+	int hasy = 0, hasm = 0, hasd = 0, hast = 0;
 
-	for(int a = 0; a < len; a++) {
+	for(a = 0; a < len; a++) {
 		if((p[a] == YL || p[a] == YS) && hasy == 0) hasy++;
 		else if((p[a] == ML || p[a] == MS || p[a] == MN) && hasm == 0) hasm++;
 		else if((p[a] == DL || p[a] == DS) && hasd == 0) hasd++;
-		else if(p[a] == DT) continue;
-		else if (!isalpha(p[a]) && !isdigit(p[a])) continue;
+		else if((p[a] == DT && hast == 0) ||
+				(!isalpha(p[a]) && !isdigit(p[a]))) continue;
 		else return -1;
 	}
 
 	return 0;
 }
 
-int dtch(char *ipat, char *opat) {
+int vpatd(char *ipat, char *opat) {
 
+	unsigned int a = 0;
 	int ilen = strlen(ipat);
 	int olen = strlen(opat);
 
-	int ohas = 0;
+	int ihy = 0, ihm = 0, ihd = 0, iht = 0;
 
-	for(int a = 0; a < olen; a++) {
-		if(opat[a] == DT) {
-			ohas++;
-			break;
-		}
-	}
-	
-	if (!ohas) return 0;
-
-	for(int a = 0; a < ilen; a++) {
-		if(ipat[a] == DT) return 0;
+	for(a = 0; a < ilen; a++) {
+		if(ipat[a] == YL || ipat[a] == YS) ihy++;
+		if(ipat[a] == ML || ipat[a] == MS || ipat[a] == MN) ihm++;
+		if(ipat[a] == DL || ipat[a] == DS) ihd++;
+		if(ipat[a] == DT) iht++;
 	}
 
-	return 1;
+	for(a = 0; a < olen; a++) {
+		if((opat[a] == YL || opat[a] == YS) && !ihy) return 1;
+		if((opat[a] == ML || opat[a] == MS || opat[a] == MN) && !ihm) return 1;
+		if((opat[a] == DL || opat[a] == DS) && !ihd) return 1;
+		if(opat[a] == DT && !iht) return 1;
+	}
+
+	return 0;
 }
 
-int dlm(char *suf) {
+int fld(char *suf) {
 
+	unsigned int a = 0;
 	int alen = sizeof(dl) / sizeof(dl[0]);
 	int mnlen = sizeof(dl[0]);
 
 	char *buf = calloc(mnlen, sizeof(char));
 
-	for(int a = 0; a < alen; a++) {
+	for(a = 0; a < alen; a++) {
 		strcpy(buf, suf);
 		if(strcasestr(suf, dl[a])) return a + 1;
 		memset(buf, 0, mnlen);
@@ -187,12 +192,13 @@ int dlm(char *suf) {
 
 int flm(char *suf) {
 
+	unsigned int a = 0;
 	int alen = sizeof(ml) / sizeof(ml[0]);
 	int mnlen = sizeof(ml[0]);
 
 	char *buf = calloc(mnlen, sizeof(char));
 
-	for(int a = 0; a < alen; a++) {
+	for(a = 0; a < alen; a++) {
 		strcpy(buf, suf);
 		if(strcasestr(suf, ml[a])) return a + 1;
 		memset(buf, 0, mnlen);
@@ -201,41 +207,43 @@ int flm(char *suf) {
 	return -1;
 }
 
-char *mknn(char *oiname, char *oname, char *ipref, 
+char *mknn(char *oiname, char *oname, char *ipref,
 	char *opref, char *ipat, char *opat) {
 
 	char *buf = calloc(SBCH, sizeof(char));
-
-	// Do not distort referenced data
 	char *iname = calloc(MBCH, sizeof(char));
-	strcpy(iname, oiname);
 
 	int iplen = strlen(ipat);
+	int oplen = strlen(opat);
 
-	int a = 0, b = 0, c = 0;
+	unsigned int a = 0, b = 0, c = 0;
 	int y = 0, m = 0, d = 0, t = 0;
 
+	strcpy(iname, oiname);
 	iname += strlen(ipref);
 
 	printf("iname: %s\n", iname);
 	printf("ipref: %s\n", ipref);
 	printf("ipat: %s, opat: %s\n", ipat, opat);
 
+	// Gather data from input string
 	for (a = 0; a < iplen; a++) {
 		if(ipat[a] == YL) {
-
 			for(b = 0; b < YLLEN; b++) { buf[b] = iname[(b+c)]; }
 			y = atoi(buf);
 			c += YLLEN;
 
 		} else if(ipat[a] == YS) {
-			// NEEDS STRTOL
+			for(b = 0; b < YSLEN; b++) { buf[b] = iname[(b+c)]; }
+			y = atoi(buf);
+			if(y > YBR) y += LCENT;
+			else y += HCENT;
 			c += YSLEN;
 
 		} else if(ipat[a] == ML) {
 			m = flm(iname);
 			c += strlen(ml[(m - 1)]);
-			
+
 		} else if(ipat[a] == MS) {
 
 			for(b = 0; b < MSLEN; b++) { buf[b] = iname[(b+c)]; }
@@ -243,23 +251,20 @@ char *mknn(char *oiname, char *oname, char *ipref,
 			c += MSLEN;
 
 		} else if(ipat[a] == MN) {
-
 			for(b = 0; b < MNLEN; b++) { buf[b] = iname[(b+c)]; }
 			m = atoi(buf);
 			c += MNLEN;
 
 		} else if(ipat[a] == DL) {
-			d = dlm(iname);
+			d = fld(iname);
 			c += strlen(dl[(d - 1)]);
 
 		} else if(ipat[a] == DS) {
-
 			for(b = 0; b < DSLEN; b++) { buf[b] = iname[(b+c)]; }
 			d = dnum(buf);
 			c += DSLEN;
 
 		} else if(ipat[a] == DT) {
-
 			for(b = 0; b < TLEN; b++) { buf[b] = iname[(b+c)]; }
 			t = atoi(buf);
 			c += TLEN;
@@ -273,13 +278,51 @@ char *mknn(char *oiname, char *oname, char *ipref,
 
 	printf("y: %d, m: %d, d: %d, t: %d\n", y, m, d, t);
 	printf("Day: %s, Month: %s\n", dl[(d-1)], ml[(m-1)]);
-	
-	if(y < MINY || y > MAXY || m < 1 || m > 12 ||
-			d < 1 || d > 7 || t < 1 || t > 31) {
-		return ERRSTR;	
-	} else {
-		return oname;
+
+	// Create output string
+	a = 0, b = 0, c = 0;
+	memset(oname, 0, MBCH);
+	strcpy(oname, opref);
+
+	for (a = 0; a < oplen; a++) {
+		if(opat[a] == YL) {
+			snprintf(buf, SBCH, "%04d", y);
+
+		} else if(opat[a] == YS) {
+			if(y < HCENT) y -= LCENT;
+			else y -= HCENT;
+			snprintf(buf, SBCH, "%02d", y);
+
+		} else if(opat[a] == ML) {
+			strcat(oname, ml[(m-1)]);
+
+		} else if(opat[a] == MN) {
+			snprintf(buf, SBCH, "%02d", m);
+
+		} else if(opat[a] == MS) {
+			strcat(oname, ms[(m-1)]);
+
+		} else if(opat[a] == DL) {
+			strcat(oname, dl[(d-1)]);
+
+		} else if(opat[a] == DS) {
+			strcat(oname, ds[(d-1)]);
+
+		} else if(opat[a] == DT) {
+			snprintf(buf, SBCH, "%02d", t);
+
+		} else {
+			snprintf(buf, SBCH, "%c", opat[a]);
+
+		}
+
+		if(strlen(buf) > 0) strcat(oname, buf);
+		memset(buf, 0, SBCH);
 	}
+
+	printf("oname: %s\n", oname);
+
+	return oname;
 }
 
 int main(int argc, char *argv[]) {
@@ -371,16 +414,19 @@ int main(int argc, char *argv[]) {
 	// Validate patterns
 	if (vpat(ipat) < 0) usage(argv[0], "Invalid input pattern", 1, verb);
 	if (vpat(opat) < 0) usage(argv[0], "Invalid output pattern", 1, verb);
-	if (strncmp(ipref, opref, MBCH) == 0 && 
+	if (strncmp(ipref, opref, MBCH) == 0 &&
 			strncmp(ipat, opat, PDCH) == 0)
 			usage(argv[0], "Input and output is exact match", 1, verb);
-	if (dtch(ipat, opat))
-		usage(argv[0], "Cannot make date numbers from thin air", 1, verb);
+	if (vpatd(ipat, opat))
+		usage(argv[0], "Cannot create data from thin air", 1, verb);
 
 	// Check for specified output dir
 	if (strlen(opath) == 0) strcpy(opath, ipath);
 	else if (ipath[strlen(opath) - 1] != DDIV)
 		ipath[strlen(opath)] = DDIV;
+
+	// Check if output prefix has been spcified
+	if (strlen(opref) == 0) strcpy(opref, ipref);
 
 	if (!d) {
 		usage(argv[0], "Could not read directory", 1, verb);
@@ -393,9 +439,8 @@ int main(int argc, char *argv[]) {
 			for (a = 0; a < iplen; a++) {
 				if (dir->d_name[a] != ipref[a]) break;
 				if (a == iplen - 1) {
-					// printf("%s\n", dir->d_name); // DEBUG
 					// snprintf(iname, MBCH, "%s%s", ipath, dir->d_name);
-					snprintf(oname, MBCH, "%s", mknn(dir->d_name, 
+					snprintf(oname, MBCH, "%s", mknn(dir->d_name,
 								buf, ipref, opref, ipat, opat));
 					if (strcasecmp(oname, ERRSTR) == 0 && verb < -1) {
 						fprintf(stderr, "Error: could not rename %s\n", iname);
