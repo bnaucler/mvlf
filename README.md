@@ -4,7 +4,7 @@ A tool for moving logfiles (or other datestamped files) with date format convers
 ## Written by
 Björn Westerberg Nauclér (mail@bnaucler.se) 2016
 
-Compiled and tested on Arch Linux 4.8
+Compiled and tested on Arch Linux 4.8 and FreeBSD 11
 
 ## Installation
 `sudo make all install`  
@@ -38,9 +38,17 @@ D = Day (Monday, Tuesday..)
 d = Day shorthand (Mon, Tue...)  
 t = Date (31, 01...)
 
-### Examples of matching patterns:
-[prefix.]2015-03-09	- Y-n-t  
-[prefix.]Mon26Dec16 - dtmy
+### Example use
+```
+$ ls test
+prefix.NOTADATE  prefix.Tue27Dec2016  prefix.Wed28Dec2016
+$ mvlf -p prefix. -r otherprefix. -i dtmY -o Y-n-t -d test2 test          
+Error: could not rename test/prefix.NOTADATE
+$ ls test2
+otherprefix.2016-12-27	otherprefix.2016-12-28
+$ ls test
+prefix.NOTADATE
+```
 
 ## Contributing
 This started as a quick hack, but is slowly turning into an actually useful tool. Feel free to send a pull request or raise an issue if you have questions or suggestions.
