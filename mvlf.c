@@ -5,22 +5,6 @@
 	Björn Westerberg Nauclér (mail@bnaucler.se) 2016
 	License: MIT (do whatever you want)
 
-	Pattern syntax:
-	Y = Year (1999, 2003...)
-	y = Year shorthand (99, 03...)
-
-	M = Month (January, February...)
-	m = Month shorthand (Jan, Feb...)
-	n = Month number (01, 02...)
-
-	D = Day (Monday, Tuesday..)
-	d = Day shorthand (Mon, Tue...)
-	t = Date (31, 01...)
-
-	Examples for matching patterns:
-	[prefix.]2015-03-09	- Y-n-t
-	[prefix.]Mon26Dec16 - dtmy
-
 */
 
 #define _GNU_SOURCE
@@ -96,7 +80,7 @@ int mnum(char *txm) {
 		if (strcasecmp(txm, ml[a]) == 0) return a + 1;
 	}
 
-	return 0;
+	return -1;
 }
 
 int dnum(char *txd) {
@@ -109,7 +93,7 @@ int dnum(char *txd) {
 		if (strcasecmp(txd, dl[a]) == 0) return a + 1;
 	}
 
-	return 0;
+	return -1;
 }
 
 int usage(char *cmd, char *err, int ret, int verb) {
@@ -222,10 +206,6 @@ char *mknn(char *oiname, char *oname, char *ipref,
 	strcpy(iname, oiname);
 	iname += strlen(ipref);
 
-	printf("iname: %s\n", iname);
-	printf("ipref: %s\n", ipref);
-	printf("ipat: %s, opat: %s\n", ipat, opat);
-
 	// Gather data from input string
 	for (a = 0; a < iplen; a++) {
 		if(ipat[a] == YL) {
@@ -276,8 +256,7 @@ char *mknn(char *oiname, char *oname, char *ipref,
 		memset(buf, 0, SBCH);
 	}
 
-	printf("y: %d, m: %d, d: %d, t: %d\n", y, m, d, t);
-	printf("Day: %s, Month: %s\n", dl[(d-1)], ml[(m-1)]);
+	if(m < 0 || m > 12 || d < 0 || t > 31) return ERRSTR;
 
 	// Create output string
 	a = 0, b = 0, c = 0;
@@ -320,17 +299,14 @@ char *mknn(char *oiname, char *oname, char *ipref,
 		memset(buf, 0, SBCH);
 	}
 
-	printf("oname: %s\n", oname);
-
 	return oname;
 }
 
 int main(int argc, char *argv[]) {
 
-	DIR *d;
+	DIR *id, *od;
 	struct dirent *dir;
 
-	// TODO: Reduce the number of string vars?
 	char *ipath = calloc(MBCH, sizeof(char));
 	char *opath = calloc(MBCH, sizeof(char));
 
@@ -349,7 +325,7 @@ int main(int argc, char *argv[]) {
 	int testr = 0, verb = 0;
 	int optc;
 
-	while((optc = getopt(argc, argv, "d:hi:o:p:r:t")) != -1) {
+	while((optc = getopt(argc, argv, "d:hi:o:p:qr:tv")) != -1) {
 		switch (optc) {
 
 			case 'd':
@@ -405,7 +381,7 @@ int main(int argc, char *argv[]) {
 
 	// Path formatting
 	if (ipath[strlen(ipath) - 1] != DDIV) ipath[strlen(ipath)] = DDIV;
-	d = opendir(ipath);
+	id = opendir(ipath);
 
 	// Standard pattern settings (based on eggdrop..)
 	if (strlen(ipat) == 0) strcpy(ipat, ISPAT);
@@ -421,38 +397,43 @@ int main(int argc, char *argv[]) {
 		usage(argv[0], "Cannot create data from thin air", 1, verb);
 
 	// Check for specified output dir
-	if (strlen(opath) == 0) strcpy(opath, ipath);
-	else if (ipath[strlen(opath) - 1] != DDIV)
-		ipath[strlen(opath)] = DDIV;
+	if (strlen(opath) == 0) { 
+		strcpy(opath, ipath);
+	} else {
+		if (opath[strlen(opath) - 1] != DDIV) opath[strlen(opath)] = DDIV;
+		od = opendir(opath);
+		if (!od) usage(argv[0], "Could not open output directory", 1, verb);
+		closedir(od);
+	}
 
 	// Check if output prefix has been spcified
 	if (strlen(opref) == 0) strcpy(opref, ipref);
+	
+	if (!id) usage(argv[0], "Could not read directory", 1, verb);
+	
+	int iplen = strlen(ipref);
 
-	if (!d) {
-		usage(argv[0], "Could not read directory", 1, verb);
+	while((dir = readdir(id)) != NULL) {
 
-	} else {
-		int iplen = strlen(ipref);
+		for (a = 0; a < iplen; a++) {
+			if (dir->d_name[a] != ipref[a]) break;
+			if (a == iplen - 1) {
+				snprintf(iname, MBCH, "%s%s", ipath, dir->d_name);
+				snprintf(buf, MBCH, "%s", mknn(dir->d_name,
+							buf, ipref, opref, ipat, opat));
 
-		while((dir = readdir(d)) != NULL) {
+				if (strcasecmp(buf, ERRSTR) == 0 && verb > -1) {
+					fprintf(stderr, "Error: could not rename %s\n", iname);
 
-			for (a = 0; a < iplen; a++) {
-				if (dir->d_name[a] != ipref[a]) break;
-				if (a == iplen - 1) {
-					// snprintf(iname, MBCH, "%s%s", ipath, dir->d_name);
-					snprintf(oname, MBCH, "%s", mknn(dir->d_name,
-								buf, ipref, opref, ipat, opat));
-					if (strcasecmp(oname, ERRSTR) == 0 && verb < -1) {
-						fprintf(stderr, "Error: could not rename %s\n", iname);
-					} else {
-						if (testr || verb) printf("%s\t%s\n", iname, oname);
-						// else rename(dir->d_name, oname);
-					}
+				} else {
+					snprintf(oname, MBCH, "%s%s", opath, buf);
+					if (testr || verb) printf("%s -> %s\n", iname, oname);
+					if (!testr) rename(iname, oname);
 				}
 			}
 		}
-		closedir(d);
 	}
+	closedir(id);
 
 	return 0;
 }
