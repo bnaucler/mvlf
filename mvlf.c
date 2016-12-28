@@ -320,6 +320,7 @@ int main(int argc, char *argv[]) {
 	char *opref = calloc(MBCH, sizeof(char));
 
 	char *buf = calloc(MBCH, sizeof(char));
+	char *buf2 = calloc(MBCH, sizeof(char));
 
 	unsigned int a = 0;
 	int testr = 0, verb = 0;
@@ -419,14 +420,14 @@ int main(int argc, char *argv[]) {
 			if (dir->d_name[a] != ipref[a]) break;
 			if (a == iplen - 1) {
 				snprintf(iname, MBCH, "%s%s", ipath, dir->d_name);
-				snprintf(buf, MBCH, "%s", mknn(dir->d_name,
+				snprintf(buf2, MBCH, "%s", mknn(dir->d_name,
 							buf, ipref, opref, ipat, opat));
 
-				if (strcasecmp(buf, ERRSTR) == 0 && verb > -1) {
+				if (strcasecmp(buf2, ERRSTR) == 0 && verb > -1) {
 					fprintf(stderr, "Error: could not rename %s\n", iname);
 
 				} else {
-					snprintf(oname, MBCH, "%s%s", opath, buf);
+					snprintf(oname, MBCH, "%s%s", opath, buf2);
 					if (testr || verb) printf("%s -> %s\n", iname, oname);
 					if (!testr) rename(iname, oname);
 				}
