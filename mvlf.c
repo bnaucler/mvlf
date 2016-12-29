@@ -72,13 +72,14 @@ char dl[7][10] = {
 
 int usage(char *cmd, char *err, int ret, int verb) {
 
-	if (strlen(err) > 0 && verb > -1) fprintf(stderr, "ERROR: %s\n", err);
+	if (strlen(err) > 0 && verb > -1) fprintf(stderr, "Error: %s\n", err);
+
 	printf("Move Logfiles v%.1f\n", VER);
 	printf("Usage: %s [-dhioprtv] [dir]\n", cmd);
 	printf("	-d: Output directory\n");
 	printf("	-h: Show this text\n");
-	printf("	-i: Input pattern (default: tmY)\n");
-	printf("	-o: Output pattern (default: Y-n-t)\n");
+	printf("	-i: Input pattern (default: %s)\n", ISPAT);
+	printf("	-o: Output pattern (default: %s)\n", OSPAT);
 	printf("	-p: Input prefix\n");
 	printf("	-r: Output prefix\n");
 	printf("	-t: Test run\n");
@@ -88,6 +89,7 @@ int usage(char *cmd, char *err, int ret, int verb) {
 	exit(ret);
 }
 
+// Verify pattern vaildity
 int vpat(char *p) {
 
 	unsigned int a = 0;
@@ -98,14 +100,15 @@ int vpat(char *p) {
 		if((p[a] == YL || p[a] == YS) && hasy == 0) hasy++;
 		else if((p[a] == ML || p[a] == MS || p[a] == MN) && hasm == 0) hasm++;
 		else if((p[a] == DL || p[a] == DS) && hasd == 0) hasd++;
-		else if((p[a] == DT && hast == 0) ||
-				(!isalpha(p[a]) && !isdigit(p[a]))) continue;
+		else if(p[a] == DT && hast == 0) hast++;
+		else if(!isalpha(p[a]) && !isdigit(p[a])) continue;
 		else return -1;
 	}
 
 	return 0;
 }
 
+// Verify output can be generated from input
 int vpatd(char *ipat, char *opat) {
 
 	unsigned int a = 0;
@@ -131,6 +134,7 @@ int vpatd(char *ipat, char *opat) {
 	return 0;
 }
 
+// Return month number
 int mnum(char *txm) {
 
 	unsigned int a = 0;
@@ -144,6 +148,7 @@ int mnum(char *txm) {
 	return -1;
 }
 
+// Return weekday number
 int dnum(char *txd) {
 
 	unsigned int a = 0;
@@ -157,6 +162,7 @@ int dnum(char *txd) {
 	return -1;
 }
 
+// Find long format month name
 int flm(char *suf) {
 
 	unsigned int a = 0;
@@ -174,6 +180,7 @@ int flm(char *suf) {
 	return -1;
 }
 
+// Find long format weekday name
 int fld(char *suf) {
 
 	unsigned int a = 0;
@@ -191,6 +198,7 @@ int fld(char *suf) {
 	return -1;
 }
 
+// Make new name
 char *mknn(char *oiname, char *oname, char *ipref,
 	char *opref, char *ipat, char *opat) {
 
@@ -295,8 +303,10 @@ char *mknn(char *oiname, char *oname, char *ipref,
 
 		}
 
-		if(strlen(buf) > 0) strcat(oname, buf);
-		memset(buf, 0, SBCH);
+		if(strlen(buf) > 0) {
+			strcat(oname, buf);
+			memset(buf, 0, SBCH);
+		}
 	}
 
 	return oname;
