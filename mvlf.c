@@ -75,7 +75,8 @@ int usage(char *cmd, char *err, int ret, int verb) {
 	if (strlen(err) > 0 && verb > -1) fprintf(stderr, "Error: %s\n", err);
 
 	printf("Move Logfiles v%.1f\n", VER);
-	printf("Usage: %s [-dhioprtv] [dir]\n", cmd);
+	printf("Usage: %s [-cdhioprtv] [dir]\n", cmd);
+	printf("	-c: Capitalize output suffix initials\n");
 	printf("	-d: Output directory\n");
 	printf("	-h: Show this text\n");
 	printf("	-i: Input pattern (default: %s)\n", ISPAT);
@@ -97,10 +98,10 @@ int vpat(char *p) {
 	int hasy = 0, hasm = 0, hasd = 0, hast = 0;
 
 	for(a = 0; a < len; a++) {
-		if((p[a] == YL || p[a] == YS) && hasy == 0) hasy++;
-		else if((p[a] == ML || p[a] == MS || p[a] == MN) && hasm == 0) hasm++;
-		else if((p[a] == DL || p[a] == DS) && hasd == 0) hasd++;
-		else if(p[a] == DT && hast == 0) hast++;
+		if((p[a] == YL || p[a] == YS) && !hasy) hasy++;
+		else if((p[a] == ML || p[a] == MS || p[a] == MN) && !hasm) hasm++;
+		else if((p[a] == DL || p[a] == DS) && !hasd) hasd++;
+		else if(p[a] == DT && !hast) hast++;
 		else if(!isalpha(p[a]) && !isdigit(p[a])) continue;
 		else return -1;
 	}
@@ -135,7 +136,7 @@ int vpatd(char *ipat, char *opat) {
 }
 
 // Return month number
-int mnum(char *txm) {
+int mnum(const char *txm) {
 
 	unsigned int a = 0;
 	int alen = sizeof(ms) / sizeof(ms[0]);
@@ -149,7 +150,7 @@ int mnum(char *txm) {
 }
 
 // Return weekday number
-int dnum(char *txd) {
+int dnum(const char *txd) {
 
 	unsigned int a = 0;
 	int alen = sizeof(ds) / sizeof(ds[0]);
@@ -163,44 +164,30 @@ int dnum(char *txd) {
 }
 
 // Find long format month name
-int flm(char *suf) {
+int flm(const char *suf) {
 
 	unsigned int a = 0;
 	int alen = sizeof(ml) / sizeof(ml[0]);
-	int mnlen = sizeof(ml[0]);
 
-	char *buf = calloc(mnlen, sizeof(char));
-
-	for(a = 0; a < alen; a++) {
-		strcpy(buf, suf);
-		if(strcasestr(suf, ml[a])) return a + 1;
-		memset(buf, 0, mnlen);
-	}
+	for(a = 0; a < alen; a++) { if(strcasestr(suf, ml[a])) return a + 1; }
 
 	return -1;
 }
 
 // Find long format weekday name
-int fld(char *suf) {
+int fld(const char *suf) {
 
 	unsigned int a = 0;
 	int alen = sizeof(dl) / sizeof(dl[0]);
-	int mnlen = sizeof(dl[0]);
 
-	char *buf = calloc(mnlen, sizeof(char));
-
-	for(a = 0; a < alen; a++) {
-		strcpy(buf, suf);
-		if(strcasestr(suf, dl[a])) return a + 1;
-		memset(buf, 0, mnlen);
-	}
+	for(a = 0; a < alen; a++) { if(strcasestr(suf, dl[a])) return a + 1; }
 
 	return -1;
 }
 
 // Make new name
 char *mknn(char *oiname, char *oname, char *ipref,
-	char *opref, char *ipat, char *opat) {
+	char *opref, char *ipat, char *opat, int cap) {
 
 	char *buf = calloc(SBCH, sizeof(char));
 	char *iname = calloc(MBCH, sizeof(char));
@@ -281,19 +268,19 @@ char *mknn(char *oiname, char *oname, char *ipref,
 			snprintf(buf, SBCH, "%02d", y);
 
 		} else if(opat[a] == ML) {
-			strcat(oname, ml[(m-1)]);
+			strcpy(buf, ml[(m-1)]);
 
 		} else if(opat[a] == MN) {
 			snprintf(buf, SBCH, "%02d", m);
 
 		} else if(opat[a] == MS) {
-			strcat(oname, ms[(m-1)]);
+			strcpy(buf, ms[(m-1)]);
 
 		} else if(opat[a] == DL) {
-			strcat(oname, dl[(d-1)]);
+			strcpy(buf, dl[(d-1)]);
 
 		} else if(opat[a] == DS) {
-			strcat(oname, ds[(d-1)]);
+			strcpy(buf, ds[(d-1)]);
 
 		} else if(opat[a] == DT) {
 			snprintf(buf, SBCH, "%02d", t);
@@ -302,11 +289,11 @@ char *mknn(char *oiname, char *oname, char *ipref,
 			snprintf(buf, SBCH, "%c", opat[a]);
 
 		}
+		
+		if (cap && isalpha(buf[0])) buf[0] = toupper(buf[0]);
 
-		if(strlen(buf) > 0) {
-			strcat(oname, buf);
-			memset(buf, 0, SBCH);
-		}
+		strcat(oname, buf);
+		memset(buf, 0, SBCH);
 	}
 
 	return oname;
@@ -333,11 +320,15 @@ int main(int argc, char *argv[]) {
 	char *buf2 = calloc(MBCH, sizeof(char));
 
 	unsigned int a = 0;
-	int testr = 0, verb = 0;
+	int cap = 0, testr = 0, verb = 0;
 	int optc;
 
-	while((optc = getopt(argc, argv, "d:hi:o:p:qr:tv")) != -1) {
+	while((optc = getopt(argc, argv, "cd:hi:o:p:qr:tv")) != -1) {
 		switch (optc) {
+
+			case 'c':
+				cap++;
+				break;
 
 			case 'd':
 				strncpy(opath, optarg, PDCH);
@@ -431,7 +422,7 @@ int main(int argc, char *argv[]) {
 			if (a == iplen - 1) {
 				snprintf(iname, MBCH, "%s%s", ipath, dir->d_name);
 				snprintf(buf2, MBCH, "%s", mknn(dir->d_name,
-							buf, ipref, opref, ipat, opat));
+							buf, ipref, opref, ipat, opat, cap));
 
 				if (strcasecmp(buf2, ERRSTR) == 0 && verb > -1) {
 					fprintf(stderr, "Error: could not rename %s\n", iname);
