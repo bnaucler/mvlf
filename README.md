@@ -14,7 +14,8 @@ The binary is installed in /usr/bin unless otherwise specified with DESTDIR
 Output of `mvlf -h`  
 ```
 Move Logfiles v0.1
-Usage: mvlf [-dhioprtv] [dir]
+Usage: mvlf [-cdhioprtv] [dir]
+	-c: Capitalize output suffix initials
 	-d: Output directory
 	-h: Show this text
 	-i: Input pattern (default: tmY)
