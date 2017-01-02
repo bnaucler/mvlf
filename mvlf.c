@@ -121,32 +121,6 @@ int vpat(const char *p) {
 	return 0;
 }
 
-// Verify output can be generated from input
-int vpatd(const char *ipat, const char *opat) {
-
-	unsigned int a = 0;
-	int ilen = strlen(ipat);
-	int olen = strlen(opat);
-
-	int ihy = 0, ihm = 0, ihd = 0, iht = 0;
-
-	for(a = 0; a < ilen; a++) {
-		if(ipat[a] == YL || ipat[a] == YS) ihy++;
-		if(ipat[a] == ML || ipat[a] == MS || ipat[a] == MN) ihm++;
-		if(ipat[a] == DL || ipat[a] == DS) ihd++;
-		if(ipat[a] == DT) iht++;
-	}
-
-	for(a = 0; a < olen; a++) {
-		if((opat[a] == YL || opat[a] == YS) && !ihy) return 1;
-		if((opat[a] == ML || opat[a] == MS || opat[a] == MN) && !ihm) return 1;
-		if((opat[a] == DL || opat[a] == DS) && !ihd) return 1;
-		if(opat[a] == DT && !iht) return 1;
-	}
-
-	return 0;
-}
-
 // Return month number
 int mnum(const char *txm) {
 
@@ -332,7 +306,7 @@ int chkdate(ymdt *date, const char *opat) {
 
 	for (a = 0; a < oplen; a++) {
 
-		if ((date->y < LCENT || date->y > HCENT + 100) &&
+		if ((date->y < LCENT || date->y > HCENT + 99) &&
 			(opat[a] == YL || opat[a] == YS))
 				return 1;
 
@@ -471,8 +445,6 @@ int main(int argc, char *argv[]) {
 	if (strncmp(ipref, opref, MBCH) == 0 &&
 			strncmp(ipat, opat, PDCH) == 0)
 			usage(argv[0], "Input and output is exact match", 1, verb);
-	if (!aut && vpatd(ipat, opat))
-		usage(argv[0], "Cannot create data from thin air", 1, verb);
 
 	// Check for specified output dir
 	if (!opath[0]) {
