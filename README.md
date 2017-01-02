@@ -41,13 +41,13 @@ t = Date (31, 01...)
 
 ### Example use
 ```
-$ ls test
+$ ls test/
 prefix.NOTADATE  prefix.Tue27Dec2016  prefix.Wed28Dec2016
-$ mvlf -p prefix. -r otherprefix. -i dtmY -o Y-n-t -d test2 test          
+$ mvlf -p prefix. -r otherprefix. -i dtmY -o Y-n-t -d test2 test
 Error: could not rename test/prefix.NOTADATE
-$ ls test2
+$ ls test2/
 otherprefix.2016-12-27	otherprefix.2016-12-28
-$ ls test
+$ ls test/
 prefix.NOTADATE
 ```
 

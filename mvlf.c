@@ -72,7 +72,7 @@ char dl[7][10] = {
 
 int usage(char *cmd, char *err, int ret, int verb) {
 
-	if (strlen(err) > 0 && verb > -1) fprintf(stderr, "Error: %s\n", err);
+	if (err[0] && verb > -1) fprintf(stderr, "Error: %s\n", err);
 
 	printf("Move Logfiles v%.1f\n", VER);
 	printf("Usage: %s [-cdhioprtv] [dir]\n", cmd);
@@ -186,11 +186,10 @@ int fld(const char *suf) {
 }
 
 // Make new name
-char *mknn(char *oiname, char *oname, char *ipref,
+char *mknn(const char *isuf, char *oname, 
 	char *opref, char *ipat, char *opat, int cap) {
 
 	char *buf = calloc(SBCH, sizeof(char));
-	char *iname = calloc(MBCH, sizeof(char));
 
 	int iplen = strlen(ipat);
 	int oplen = strlen(opat);
@@ -198,49 +197,46 @@ char *mknn(char *oiname, char *oname, char *ipref,
 	unsigned int a = 0, b = 0, c = 0;
 	int y = 0, m = 0, d = 0, t = 0;
 
-	strcpy(iname, oiname);
-	iname += strlen(ipref);
-
 	// Gather data from input string
 	for (a = 0; a < iplen; a++) {
 		if(ipat[a] == YL) {
-			for(b = 0; b < YLLEN; b++) { buf[b] = iname[(b+c)]; }
+			for(b = 0; b < YLLEN; b++) { buf[b] = isuf[(b+c)]; }
 			y = atoi(buf);
 			c += YLLEN;
 
 		} else if(ipat[a] == YS) {
-			for(b = 0; b < YSLEN; b++) { buf[b] = iname[(b+c)]; }
+			for(b = 0; b < YSLEN; b++) { buf[b] = isuf[(b+c)]; }
 			y = atoi(buf);
 			if(y > YBR) y += LCENT;
 			else y += HCENT;
 			c += YSLEN;
 
 		} else if(ipat[a] == ML) {
-			m = flm(iname);
+			m = flm(isuf);
 			c += strlen(ml[(m - 1)]);
 
 		} else if(ipat[a] == MS) {
 
-			for(b = 0; b < MSLEN; b++) { buf[b] = iname[(b+c)]; }
+			for(b = 0; b < MSLEN; b++) { buf[b] = isuf[(b+c)]; }
 			m = mnum(buf);
 			c += MSLEN;
 
 		} else if(ipat[a] == MN) {
-			for(b = 0; b < MNLEN; b++) { buf[b] = iname[(b+c)]; }
+			for(b = 0; b < MNLEN; b++) { buf[b] = isuf[(b+c)]; }
 			m = atoi(buf);
 			c += MNLEN;
 
 		} else if(ipat[a] == DL) {
-			d = fld(iname);
+			d = fld(isuf);
 			c += strlen(dl[(d - 1)]);
 
 		} else if(ipat[a] == DS) {
-			for(b = 0; b < DSLEN; b++) { buf[b] = iname[(b+c)]; }
+			for(b = 0; b < DSLEN; b++) { buf[b] = isuf[(b+c)]; }
 			d = dnum(buf);
 			c += DSLEN;
 
 		} else if(ipat[a] == DT) {
-			for(b = 0; b < TLEN; b++) { buf[b] = iname[(b+c)]; }
+			for(b = 0; b < TLEN; b++) { buf[b] = isuf[(b+c)]; }
 			t = atoi(buf);
 			c += TLEN;
 
@@ -287,10 +283,9 @@ char *mknn(char *oiname, char *oname, char *ipref,
 
 		} else {
 			snprintf(buf, SBCH, "%c", opat[a]);
-
 		}
 		
-		if (cap && isalpha(buf[0])) buf[0] = toupper(buf[0]);
+		if (cap) buf[0] = toupper(buf[0]);
 
 		strcat(oname, buf);
 		memset(buf, 0, SBCH);
@@ -386,8 +381,8 @@ int main(int argc, char *argv[]) {
 	id = opendir(ipath);
 
 	// Standard pattern settings (based on eggdrop..)
-	if (strlen(ipat) == 0) strcpy(ipat, ISPAT);
-	if (strlen(opat) == 0) strcpy(opat, OSPAT);
+	if (!ipat[0]) strcpy(ipat, ISPAT);
+	if (!opat[0]) strcpy(opat, OSPAT);
 
 	// Validate patterns
 	if (vpat(ipat) < 0) usage(argv[0], "Invalid input pattern", 1, verb);
@@ -399,7 +394,7 @@ int main(int argc, char *argv[]) {
 		usage(argv[0], "Cannot create data from thin air", 1, verb);
 
 	// Check for specified output dir
-	if (strlen(opath) == 0) {
+	if (!opath[0]) {
 		strcpy(opath, ipath);
 	} else {
 		if (opath[strlen(opath) - 1] != DDIV) opath[strlen(opath)] = DDIV;
@@ -409,7 +404,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Check if output prefix has been spcified
-	if (strlen(opref) == 0) strcpy(opref, ipref);
+	if (!opref[0]) strcpy(opref, ipref);
 
 	if (!id) usage(argv[0], "Could not read directory", 1, verb);
 
@@ -421,8 +416,8 @@ int main(int argc, char *argv[]) {
 			if (dir->d_name[a] != ipref[a]) break;
 			if (a == iplen - 1) {
 				snprintf(iname, MBCH, "%s%s", ipath, dir->d_name);
-				snprintf(buf2, MBCH, "%s", mknn(dir->d_name,
-							buf, ipref, opref, ipat, opat, cap));
+				snprintf(buf2, MBCH, "%s", mknn(dir->d_name + strlen(ipref),
+							buf,  opref, ipat, opat, cap));
 
 				if (strcasecmp(buf2, ERRSTR) == 0 && verb > -1) {
 					fprintf(stderr, "Error: could not rename %s\n", iname);
