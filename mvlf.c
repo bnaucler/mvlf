@@ -185,14 +185,64 @@ int fld(const char *suf) {
 	return -1;
 }
 
+char *mkoname(const char *opat, const char *opref, char *oname, 
+		int y, int m, int d, int t, int cap) {
+
+	unsigned int a = 0;
+	int oplen = strlen(opat);
+
+	char *buf = calloc(SBCH, sizeof(char));
+
+	memset(oname, 0, MBCH);
+	strcpy(oname, opref);
+
+	for (a = 0; a < oplen; a++) {
+		if(opat[a] == YL) {
+			snprintf(buf, SBCH, "%04d", y);
+
+		} else if(opat[a] == YS) {
+			if(y < HCENT) y -= LCENT;
+			else y -= HCENT;
+			snprintf(buf, SBCH, "%02d", y);
+
+		} else if(opat[a] == ML) {
+			strcpy(buf, ml[(m-1)]);
+
+		} else if(opat[a] == MN) {
+			snprintf(buf, SBCH, "%02d", m);
+
+		} else if(opat[a] == MS) {
+			strcpy(buf, ms[(m-1)]);
+
+		} else if(opat[a] == DL) {
+			strcpy(buf, dl[(d-1)]);
+
+		} else if(opat[a] == DS) {
+			strcpy(buf, ds[(d-1)]);
+
+		} else if(opat[a] == DT) {
+			snprintf(buf, SBCH, "%02d", t);
+
+		} else {
+			snprintf(buf, SBCH, "%c", opat[a]);
+		}
+		
+		if (cap) buf[0] = toupper(buf[0]);
+
+		strcat(oname, buf);
+		memset(buf, 0, SBCH);
+	}
+
+	return oname;
+}
+
 // Make new name
-char *mknn(const char *isuf, char *oname, 
+char *rpat(const char *isuf, char *oname, 
 	char *opref, char *ipat, char *opat, int cap) {
 
 	char *buf = calloc(SBCH, sizeof(char));
 
 	int iplen = strlen(ipat);
-	int oplen = strlen(opat);
 
 	unsigned int a = 0, b = 0, c = 0;
 	int y = 0, m = 0, d = 0, t = 0;
@@ -250,48 +300,7 @@ char *mknn(const char *isuf, char *oname,
 	if(m < 0 || m > 12 || d < 0 || t > 31) return ERRSTR;
 
 	// Create output string
-	a = 0, b = 0, c = 0;
-	memset(oname, 0, MBCH);
-	strcpy(oname, opref);
-
-	for (a = 0; a < oplen; a++) {
-		if(opat[a] == YL) {
-			snprintf(buf, SBCH, "%04d", y);
-
-		} else if(opat[a] == YS) {
-			if(y < HCENT) y -= LCENT;
-			else y -= HCENT;
-			snprintf(buf, SBCH, "%02d", y);
-
-		} else if(opat[a] == ML) {
-			strcpy(buf, ml[(m-1)]);
-
-		} else if(opat[a] == MN) {
-			snprintf(buf, SBCH, "%02d", m);
-
-		} else if(opat[a] == MS) {
-			strcpy(buf, ms[(m-1)]);
-
-		} else if(opat[a] == DL) {
-			strcpy(buf, dl[(d-1)]);
-
-		} else if(opat[a] == DS) {
-			strcpy(buf, ds[(d-1)]);
-
-		} else if(opat[a] == DT) {
-			snprintf(buf, SBCH, "%02d", t);
-
-		} else {
-			snprintf(buf, SBCH, "%c", opat[a]);
-		}
-		
-		if (cap) buf[0] = toupper(buf[0]);
-
-		strcat(oname, buf);
-		memset(buf, 0, SBCH);
-	}
-
-	return oname;
+	return mkoname(opat, opref, oname, y, m, d, t, cap);
 }
 
 int main(int argc, char *argv[]) {
@@ -416,7 +425,7 @@ int main(int argc, char *argv[]) {
 			if (dir->d_name[a] != ipref[a]) break;
 			if (a == iplen - 1) {
 				snprintf(iname, MBCH, "%s%s", ipath, dir->d_name);
-				snprintf(buf2, MBCH, "%s", mknn(dir->d_name + strlen(ipref),
+				snprintf(buf2, MBCH, "%s", rpat(dir->d_name + strlen(ipref),
 							buf,  opref, ipat, opat, cap));
 
 				if (strcasecmp(buf2, ERRSTR) == 0 && verb > -1) {
