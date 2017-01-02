@@ -1,4 +1,4 @@
-# mvlf v0.1
+# mvlf v0.2
 A tool for moving logfiles (or other datestamped files) with date format conversion.
 
 ## Written by
@@ -14,7 +14,7 @@ The binary is installed in /usr/bin unless otherwise specified with DESTDIR
 Output of `mvlf -h`  
 ```
 Move Logfiles v0.2
-Usage: mvlf [-acdhioprtv] [dir]
+Usage: mvlf [-acdhiopqrtv] [dir]
 	-a: Autodetect input pattern (experimental)
 	-c: Capitalize output suffix initials
 	-d: Output directory

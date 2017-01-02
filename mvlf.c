@@ -86,7 +86,7 @@ int usage(char *cmd, char *err, int ret, int verb) {
 	if (err[0] && verb > -1) fprintf(stderr, "Error: %s\n", err);
 
 	printf("Move Logfiles v%.1f\n", VER);
-	printf("Usage: %s [-acdhioprtv] [dir]\n", cmd);
+	printf("Usage: %s [-acdhiopqrtv] [dir]\n", cmd);
 	printf("	-a: Autodetect input pattern (experimental)\n");
 	printf("	-c: Capitalize output suffix initials\n");
 	printf("	-d: Output directory\n");
