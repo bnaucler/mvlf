@@ -70,12 +70,24 @@ char dl[7][10] = {
 	"friday", "saturday", "sunday"
 };
 
+char stpat[4][6] = {
+	"tmY", "Y-n-t", "t/n/y", "t/n/Y"
+};
+
+typedef struct ymdt {
+	int y;
+	int m;
+	int d;
+	int t;
+} ymdt;
+
 int usage(char *cmd, char *err, int ret, int verb) {
 
 	if (err[0] && verb > -1) fprintf(stderr, "Error: %s\n", err);
 
 	printf("Move Logfiles v%.1f\n", VER);
-	printf("Usage: %s [-cdhioprtv] [dir]\n", cmd);
+	printf("Usage: %s [-acdhioprtv] [dir]\n", cmd);
+	printf("	-a: Autodetect input pattern (experimental)\n");
 	printf("	-c: Capitalize output suffix initials\n");
 	printf("	-d: Output directory\n");
 	printf("	-h: Show this text\n");
@@ -91,7 +103,7 @@ int usage(char *cmd, char *err, int ret, int verb) {
 }
 
 // Verify pattern vaildity
-int vpat(char *p) {
+int vpat(const char *p) {
 
 	unsigned int a = 0;
 	int len = strlen(p);
@@ -110,7 +122,7 @@ int vpat(char *p) {
 }
 
 // Verify output can be generated from input
-int vpatd(char *ipat, char *opat) {
+int vpatd(const char *ipat, const char *opat) {
 
 	unsigned int a = 0;
 	int ilen = strlen(ipat);
@@ -185,8 +197,18 @@ int fld(const char *suf) {
 	return -1;
 }
 
-char *mkoname(const char *opat, const char *opref, char *oname, 
-		int y, int m, int d, int t, int cap) {
+char *adpat(char *isuf, int *aut) {
+
+	char *pat = calloc(PDCH + 1, sizeof(char));
+
+	aut = 0;
+
+	return pat;
+}
+
+// Make new output name
+char *mkoname(const char *opat, const char *opref, char *oname,
+		ymdt *date, int cap) {
 
 	unsigned int a = 0;
 	int oplen = strlen(opat);
@@ -198,35 +220,35 @@ char *mkoname(const char *opat, const char *opref, char *oname,
 
 	for (a = 0; a < oplen; a++) {
 		if(opat[a] == YL) {
-			snprintf(buf, SBCH, "%04d", y);
+			snprintf(buf, SBCH, "%04d", date->y);
 
 		} else if(opat[a] == YS) {
-			if(y < HCENT) y -= LCENT;
-			else y -= HCENT;
-			snprintf(buf, SBCH, "%02d", y);
+			if(date->y < HCENT) date->y -= LCENT;
+			else date->y -= HCENT;
+			snprintf(buf, SBCH, "%02d", date->y);
 
 		} else if(opat[a] == ML) {
-			strcpy(buf, ml[(m-1)]);
+			strcpy(buf, ml[(date->m-1)]);
 
 		} else if(opat[a] == MN) {
-			snprintf(buf, SBCH, "%02d", m);
+			snprintf(buf, SBCH, "%02d", date->m);
 
 		} else if(opat[a] == MS) {
-			strcpy(buf, ms[(m-1)]);
+			strcpy(buf, ms[(date->m-1)]);
 
 		} else if(opat[a] == DL) {
-			strcpy(buf, dl[(d-1)]);
+			strcpy(buf, dl[(date->d-1)]);
 
 		} else if(opat[a] == DS) {
-			strcpy(buf, ds[(d-1)]);
+			strcpy(buf, ds[(date->d-1)]);
 
 		} else if(opat[a] == DT) {
-			snprintf(buf, SBCH, "%02d", t);
+			snprintf(buf, SBCH, "%02d", date->t);
 
 		} else {
 			snprintf(buf, SBCH, "%c", opat[a]);
 		}
-		
+
 		if (cap) buf[0] = toupper(buf[0]);
 
 		strcat(oname, buf);
@@ -236,58 +258,69 @@ char *mkoname(const char *opat, const char *opref, char *oname,
 	return oname;
 }
 
-// Make new name
-char *rpat(const char *isuf, char *oname, 
-	char *opref, char *ipat, char *opat, int cap) {
+int rstymdt(ymdt *date) {
+	
+	date->y = 0;
+	date->m = 0;
+	date->d = 0;
+	date->t = 0;
+
+	return 0;
+}
+
+// Read time data from pattern
+char *rpat(const char *isuf, char *oname, const char *opref,
+		const char *ipat, const char *opat, ymdt *date, int cap) {
 
 	char *buf = calloc(SBCH, sizeof(char));
 
 	int iplen = strlen(ipat);
 
 	unsigned int a = 0, b = 0, c = 0;
-	int y = 0, m = 0, d = 0, t = 0;
+	// int y = 0, m = 0, d = 0, t = 0;
+	rstymdt(date);
 
 	// Gather data from input string
 	for (a = 0; a < iplen; a++) {
 		if(ipat[a] == YL) {
 			for(b = 0; b < YLLEN; b++) { buf[b] = isuf[(b+c)]; }
-			y = atoi(buf);
+			date->y = atoi(buf);
 			c += YLLEN;
 
 		} else if(ipat[a] == YS) {
 			for(b = 0; b < YSLEN; b++) { buf[b] = isuf[(b+c)]; }
-			y = atoi(buf);
-			if(y > YBR) y += LCENT;
-			else y += HCENT;
+			date->y = atoi(buf);
+			if(date->y > YBR) date->y += LCENT;
+			else date->y += HCENT;
 			c += YSLEN;
 
 		} else if(ipat[a] == ML) {
-			m = flm(isuf);
-			c += strlen(ml[(m - 1)]);
+			date->m = flm(isuf);
+			c += strlen(ml[(date->m - 1)]);
 
 		} else if(ipat[a] == MS) {
 
 			for(b = 0; b < MSLEN; b++) { buf[b] = isuf[(b+c)]; }
-			m = mnum(buf);
+			date->m = mnum(buf);
 			c += MSLEN;
 
 		} else if(ipat[a] == MN) {
 			for(b = 0; b < MNLEN; b++) { buf[b] = isuf[(b+c)]; }
-			m = atoi(buf);
+			date->m = atoi(buf);
 			c += MNLEN;
 
 		} else if(ipat[a] == DL) {
-			d = fld(isuf);
-			c += strlen(dl[(d - 1)]);
+			date->d = fld(isuf);
+			c += strlen(dl[(date->d - 1)]);
 
 		} else if(ipat[a] == DS) {
 			for(b = 0; b < DSLEN; b++) { buf[b] = isuf[(b+c)]; }
-			d = dnum(buf);
+			date->d = dnum(buf);
 			c += DSLEN;
 
 		} else if(ipat[a] == DT) {
 			for(b = 0; b < TLEN; b++) { buf[b] = isuf[(b+c)]; }
-			t = atoi(buf);
+			date->t = atoi(buf);
 			c += TLEN;
 
 		} else {
@@ -297,10 +330,8 @@ char *rpat(const char *isuf, char *oname,
 		memset(buf, 0, SBCH);
 	}
 
-	if(m < 0 || m > 12 || d < 0 || t > 31) return ERRSTR;
-
-	// Create output string
-	return mkoname(opat, opref, oname, y, m, d, t, cap);
+	if(date->m < 0 || date->m > 12 || date->d < 0 || date->t > 31) return ERRSTR;
+	else return mkoname(opat, opref, oname, date, cap);
 }
 
 int main(int argc, char *argv[]) {
@@ -324,11 +355,17 @@ int main(int argc, char *argv[]) {
 	char *buf2 = calloc(MBCH, sizeof(char));
 
 	unsigned int a = 0;
-	int cap = 0, testr = 0, verb = 0;
+	int aut = 0, cap = 0, testr = 0, verb = 0;
 	int optc;
 
-	while((optc = getopt(argc, argv, "cd:hi:o:p:qr:tv")) != -1) {
+	struct ymdt date;
+
+	while((optc = getopt(argc, argv, "acd:hi:o:p:qr:tv")) != -1) {
 		switch (optc) {
+
+			case 'a':
+				aut++;
+				break;
 
 			case 'c':
 				cap++;
@@ -390,7 +427,7 @@ int main(int argc, char *argv[]) {
 	id = opendir(ipath);
 
 	// Standard pattern settings (based on eggdrop..)
-	if (!ipat[0]) strcpy(ipat, ISPAT);
+	if (!ipat[0] && !aut) strcpy(ipat, ISPAT);
 	if (!opat[0]) strcpy(opat, OSPAT);
 
 	// Validate patterns
@@ -399,7 +436,7 @@ int main(int argc, char *argv[]) {
 	if (strncmp(ipref, opref, MBCH) == 0 &&
 			strncmp(ipat, opat, PDCH) == 0)
 			usage(argv[0], "Input and output is exact match", 1, verb);
-	if (vpatd(ipat, opat))
+	if (!aut && vpatd(ipat, opat))
 		usage(argv[0], "Cannot create data from thin air", 1, verb);
 
 	// Check for specified output dir
@@ -424,9 +461,17 @@ int main(int argc, char *argv[]) {
 		for (a = 0; a < iplen; a++) {
 			if (dir->d_name[a] != ipref[a]) break;
 			if (a == iplen - 1) {
+
+				if (aut) {
+					strcpy(ipat, adpat(dir->d_name + strlen(ipref), &aut));
+					if (!ipat[0]) usage(argv[0],
+							"Could not autodetect pattern", 1, verb);
+					else if (vpatd(ipat, opat)) usage(argv[0],
+							"Cannot create data from thin air", 1, verb);
+				}
+
 				snprintf(iname, MBCH, "%s%s", ipath, dir->d_name);
-				snprintf(buf2, MBCH, "%s", rpat(dir->d_name + strlen(ipref),
-							buf,  opref, ipat, opat, cap));
+				snprintf(buf2, MBCH, "%s", rpat(dir->d_name + strlen(ipref), buf,  opref, ipat, opat, &date, cap));
 
 				if (strcasecmp(buf2, ERRSTR) == 0 && verb > -1) {
 					fprintf(stderr, "Error: could not rename %s\n", iname);
