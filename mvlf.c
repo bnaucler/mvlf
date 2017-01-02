@@ -16,7 +16,7 @@
 #include <ctype.h>
 #include <dirent.h>
 
-#define VER 0.1
+#define VER 0.2
 
 #define HCENT 2000
 #define LCENT 1900
@@ -197,18 +197,9 @@ int fld(const char *suf) {
 	return -1;
 }
 
-char *adpat(char *isuf, int *aut) {
-
-	char *pat = calloc(PDCH + 1, sizeof(char));
-
-	aut = 0;
-
-	return pat;
-}
-
 // Make new output name
 char *mkoname(const char *opat, const char *opref, char *oname,
-		ymdt *date, int cap) {
+		ymdt *date, const int cap) {
 
 	int oplen = strlen(opat);
 
@@ -270,8 +261,7 @@ int rstymdt(ymdt *date) {
 }
 
 // Read time data from pattern
-ymdt *rpat(const char *isuf, char *oname, const char *opref,
-		const char *ipat, const char *opat, ymdt *date, int cap) {
+ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 
 	char *buf = calloc(SBCH, sizeof(char));
 
@@ -343,7 +333,7 @@ int chkdate(ymdt *date, const char *opat) {
 	for (a = 0; a < oplen; a++) {
 
 		if ((date->y < LCENT || date->y > HCENT + 100) &&
-			(opat[a] == YL || opat[a] == YS)) 
+			(opat[a] == YL || opat[a] == YS))
 				return 1;
 
 		if ((date->m < 1 || date->m > 12) &&
@@ -360,6 +350,24 @@ int chkdate(ymdt *date, const char *opat) {
 	}
 
 	return 0;
+}
+
+// Autodetect pattern
+char *adpat(const char *isuf, ymdt *date, const char *opat, const int cap) {
+
+	char *pat = calloc(PDCH + 1, sizeof(char));
+
+	int numpat = sizeof(stpat) / sizeof(stpat[0]);
+
+	unsigned int a = 0;
+
+	for (a = 0; a < numpat; a++) {
+		strcpy(pat, stpat[a]);
+		rpat(isuf, pat, date);
+		if (!chkdate(date, opat)) return pat;
+	}
+
+	return ERRSTR;
 }
 
 int main(int argc, char *argv[]) {
@@ -380,7 +388,6 @@ int main(int argc, char *argv[]) {
 	char *opref = calloc(MBCH, sizeof(char));
 
 	char *buf = calloc(MBCH, sizeof(char));
-	char *buf2 = calloc(MBCH, sizeof(char));
 
 	unsigned int a = 0;
 	int aut = 0, cap = 0, testr = 0, verb = 0;
@@ -490,28 +497,24 @@ int main(int argc, char *argv[]) {
 			if (dir->d_name[a] != ipref[a]) break;
 			if (a == iplen - 1) {
 
-				if (aut) {
-					strcpy(ipat, adpat(dir->d_name + strlen(ipref), &aut));
-					if (!ipat[0]) usage(argv[0],
-							"Could not autodetect pattern", 1, verb);
-					else if (vpatd(ipat, opat)) usage(argv[0],
-							"Cannot create data from thin air", 1, verb);
-				}
-
 				snprintf(iname, MBCH, "%s%s", ipath, dir->d_name);
-				rpat(dir->d_name + strlen(ipref),
-						buf,  opref, ipat, opat, &date, cap);
-				strcpy(buf2, mkoname(opat, opref, oname, &date, cap));
+
+				if (aut) strcpy(ipat, adpat(dir->d_name + iplen,
+						&date, opat, cap));
+				else rpat(dir->d_name + iplen, ipat, &date);
 
 				if (chkdate(&date, opat)) {
-					if (verb > -1) 
+					if (verb > -1)
 						fprintf(stderr, "Error: could not rename %s\n", iname);
 
 				} else {
-					snprintf(oname, MBCH, "%s%s", opath, buf2);
+					strcpy(buf, mkoname(opat, opref, oname, &date, cap));
+					snprintf(oname, MBCH, "%s%s", opath, buf);
 					if (testr || verb) printf("%s -> %s\n", iname, oname);
 					if (!testr) rename(iname, oname);
 				}
+
+				memset(buf, 0, MBCH);
 			}
 		}
 	}
