@@ -210,10 +210,11 @@ char *adpat(char *isuf, int *aut) {
 char *mkoname(const char *opat, const char *opref, char *oname,
 		ymdt *date, int cap) {
 
-	unsigned int a = 0;
 	int oplen = strlen(opat);
 
 	char *buf = calloc(SBCH, sizeof(char));
+
+	unsigned int a = 0;
 
 	memset(oname, 0, MBCH);
 	strcpy(oname, opref);
@@ -259,7 +260,7 @@ char *mkoname(const char *opat, const char *opref, char *oname,
 }
 
 int rstymdt(ymdt *date) {
-	
+
 	date->y = 0;
 	date->m = 0;
 	date->d = 0;
@@ -269,7 +270,7 @@ int rstymdt(ymdt *date) {
 }
 
 // Read time data from pattern
-char *rpat(const char *isuf, char *oname, const char *opref,
+ymdt *rpat(const char *isuf, char *oname, const char *opref,
 		const char *ipat, const char *opat, ymdt *date, int cap) {
 
 	char *buf = calloc(SBCH, sizeof(char));
@@ -277,7 +278,6 @@ char *rpat(const char *isuf, char *oname, const char *opref,
 	int iplen = strlen(ipat);
 
 	unsigned int a = 0, b = 0, c = 0;
-	// int y = 0, m = 0, d = 0, t = 0;
 	rstymdt(date);
 
 	// Gather data from input string
@@ -330,8 +330,36 @@ char *rpat(const char *isuf, char *oname, const char *opref,
 		memset(buf, 0, SBCH);
 	}
 
-	if(date->m < 0 || date->m > 12 || date->d < 0 || date->t > 31) return ERRSTR;
-	else return mkoname(opat, opref, oname, date, cap);
+	return date;
+}
+
+// Check for data needed to produce output
+int chkdate(ymdt *date, const char *opat) {
+
+	int oplen = strlen(opat);
+
+	unsigned int a = 0;
+
+	for (a = 0; a < oplen; a++) {
+
+		if ((date->y < LCENT || date->y > HCENT + 100) &&
+			(opat[a] == YL || opat[a] == YS)) 
+				return 1;
+
+		if ((date->m < 1 || date->m > 12) &&
+			(opat[a] == ML || opat[a] == MS || opat[a] == MN))
+				return 1;
+
+		if ((date->d < 1 || date->d > 7) &&
+			(opat[a] == DL || opat[a] == DS))
+				return 1;
+
+		if ((date->t < 1 || date->t > 31) && (opat[a] == DT))
+				return 1;
+
+	}
+
+	return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -471,10 +499,13 @@ int main(int argc, char *argv[]) {
 				}
 
 				snprintf(iname, MBCH, "%s%s", ipath, dir->d_name);
-				snprintf(buf2, MBCH, "%s", rpat(dir->d_name + strlen(ipref), buf,  opref, ipat, opat, &date, cap));
+				rpat(dir->d_name + strlen(ipref),
+						buf,  opref, ipat, opat, &date, cap);
+				strcpy(buf2, mkoname(opat, opref, oname, &date, cap));
 
-				if (strcasecmp(buf2, ERRSTR) == 0 && verb > -1) {
-					fprintf(stderr, "Error: could not rename %s\n", iname);
+				if (chkdate(&date, opat)) {
+					if (verb > -1) 
+						fprintf(stderr, "Error: could not rename %s\n", iname);
 
 				} else {
 					snprintf(oname, MBCH, "%s%s", opath, buf2);
