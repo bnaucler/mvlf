@@ -14,18 +14,15 @@ The binary is installed in /usr/bin unless otherwise specified with DESTDIR
 Output of `mvlf -h`  
 ```
 Move Logfiles v0.2
-Usage: mvlf [-acdhiopqrtv] [dir]
+Usage: mvlf [-achioqtv] [dir/prefix] [dir/prefix]
 	-a: Autodetect input pattern (experimental)
 	-c: Capitalize output suffix initials
-	-d: Output directory
 	-h: Show this text
 	-i: Input pattern (default: tmY)
 	-o: Output pattern (default: Y-n-t)
-	-p: Input prefix
-	-r: Output prefix
+	-q: Decrease verbosity level
 	-t: Test run
 	-v: Increase verbosity level
-	-q: Decrease verbosity level
 ```
 
 ## Patterns
@@ -43,11 +40,11 @@ t = Date (31, 01...)
 ### Example use
 ```
 $ ls test/
-prefix.NOTADATE  prefix.Tue27Dec2016  prefix.Wed28Dec2016
-$ mvlf -p prefix. -r otherprefix. -i dtmY -o Y-n-t -d test2 test
+prefix.2016-12-27  prefix.2016-12-28  prefix.NOTADATE
+$ mvlf -i Y-n-t -o tmY test/prefix. test2/otherprefix.
 Error: could not rename test/prefix.NOTADATE
 $ ls test2/
-otherprefix.2016-12-27	otherprefix.2016-12-28
+otherprefix.27dec2016  otherprefix.28dec2016
 $ ls test/
 prefix.NOTADATE
 ```

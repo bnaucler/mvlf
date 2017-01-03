@@ -3,6 +3,7 @@
 	mvlf.c - Move logfiles (with date format conversion)
 
 	Björn Westerberg Nauclér (mail@bnaucler.se) 2016
+	https://github.com/bnaucler/mvlf
 	License: MIT (do whatever you want)
 
 */
@@ -14,6 +15,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <libgen.h>
 #include <dirent.h>
 
 #define VER 0.2
@@ -71,7 +73,7 @@ char dl[7][10] = {
 };
 
 char stpat[4][6] = {
-	"tmY", "Y-n-t", "t/n/y", "t/n/Y"
+	"tmY", "Y/n/t", "t/n/y", "t/n/Y"
 };
 
 typedef struct ymdt {
@@ -86,18 +88,15 @@ int usage(char *cmd, char *err, int ret, int verb) {
 	if (err[0] && verb > -1) fprintf(stderr, "Error: %s\n", err);
 
 	printf("Move Logfiles v%.1f\n", VER);
-	printf("Usage: %s [-acdhiopqrtv] [dir]\n", cmd);
+	printf("Usage: %s [-achioqtv] [dir/prefix] [dir/prefix]\n", cmd);
 	printf("	-a: Autodetect input pattern (experimental)\n");
 	printf("	-c: Capitalize output suffix initials\n");
-	printf("	-d: Output directory\n");
 	printf("	-h: Show this text\n");
 	printf("	-i: Input pattern (default: %s)\n", ISPAT);
 	printf("	-o: Output pattern (default: %s)\n", OSPAT);
-	printf("	-p: Input prefix\n");
-	printf("	-r: Output prefix\n");
+	printf("	-q: Decrease verbosity level\n");
 	printf("	-t: Test run\n");
 	printf("	-v: Increase verbosity level\n");
-	printf("	-q: Decrease verbosity level\n");
 
 	exit(ret);
 }
@@ -115,7 +114,7 @@ int vpat(const char *p) {
 		else if((p[a] == DL || p[a] == DS) && !hasd) hasd++;
 		else if(p[a] == DT && !hast) hast++;
 		else if(!isalpha(p[a]) && !isdigit(p[a])) continue;
-		else return -1;
+		else return 1;
 	}
 
 	return 0;
@@ -175,10 +174,9 @@ int fld(const char *suf) {
 char *mkoname(const char *opat, const char *opref, char *oname,
 		ymdt *date, const int cap) {
 
-	int oplen = strlen(opat);
-
 	char *buf = calloc(SBCH, sizeof(char));
 
+	int oplen = strlen(opat);
 	unsigned int a = 0;
 
 	memset(oname, 0, MBCH);
@@ -224,25 +222,15 @@ char *mkoname(const char *opat, const char *opref, char *oname,
 	return oname;
 }
 
-int rstymdt(ymdt *date) {
-
-	date->y = 0;
-	date->m = 0;
-	date->d = 0;
-	date->t = 0;
-
-	return 0;
-}
-
 // Read time data from pattern
 ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 
 	char *buf = calloc(SBCH, sizeof(char));
 
 	int iplen = strlen(ipat);
-
 	unsigned int a = 0, b = 0, c = 0;
-	rstymdt(date);
+
+	memset(date, 0, sizeof(*date));
 
 	// Gather data from input string
 	for (a = 0; a < iplen; a++) {
@@ -301,7 +289,6 @@ ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 int chkdate(ymdt *date, const char *opat) {
 
 	int oplen = strlen(opat);
-
 	unsigned int a = 0;
 
 	for (a = 0; a < oplen; a++) {
@@ -332,7 +319,6 @@ char *adpat(const char *isuf, ymdt *date, const char *opat, const int cap) {
 	char *pat = calloc(PDCH + 1, sizeof(char));
 
 	int numpat = sizeof(stpat) / sizeof(stpat[0]);
-
 	unsigned int a = 0;
 
 	for (a = 0; a < numpat; a++) {
@@ -363,13 +349,13 @@ int main(int argc, char *argv[]) {
 
 	char *buf = calloc(MBCH, sizeof(char));
 
-	unsigned int a = 0;
-	int aut = 0, cap = 0, testr = 0, verb = 0;
 	int optc;
+	int aut = 0, cap = 0, testr = 0, verb = 0;
+	unsigned int a = 0;
 
 	struct ymdt date;
 
-	while((optc = getopt(argc, argv, "acd:hi:o:p:qr:tv")) != -1) {
+	while((optc = getopt(argc, argv, "achi:o:qtv")) != -1) {
 		switch (optc) {
 
 			case 'a':
@@ -378,10 +364,6 @@ int main(int argc, char *argv[]) {
 
 			case 'c':
 				cap++;
-				break;
-
-			case 'd':
-				strncpy(opath, optarg, PDCH);
 				break;
 
 			case 'h':
@@ -394,14 +376,6 @@ int main(int argc, char *argv[]) {
 
 			case 'o':
 				strncpy(opat, optarg, PDCH);
-				break;
-
-			case 'p':
-				strncpy(ipref, optarg, MBCH);
-				break;
-
-			case 'r':
-				strncpy(opref, optarg, MBCH);
 				break;
 
 			case 'q':
@@ -423,42 +397,45 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Input verification
-	if (argc > optind + 1) {
+	if (argc > optind + 2) {
 		usage(argv[0], "Too many arguments", 1, verb);
 	} else if (argc > optind) {
-		strcpy(ipath, argv[optind]);
+		strncpy(ipath, argv[optind], MBCH);
+		if (argc == optind + 2) strncpy(opath, argv[optind + 1], MBCH);
 	} else {
-		ipath = getcwd(ipath, MBCH);
+		usage(argv[0], "Nothing to do", 0, verb);
 	}
 
-	// Path formatting
-	if (ipath[strlen(ipath) - 1] != DDIV) ipath[strlen(ipath)] = DDIV;
-	id = opendir(ipath);
+	// Get file names from paths
+	if (!opath[0]) strcpy(opath, ipath);
+
+	strcpy(ipref, basename(ipath));
+	strcpy(ipath, dirname(ipath));
+	strcpy(opref, basename(opath));
+	strcpy(opath, dirname(opath));
+	
+	if (strncmp(ipath, opath, MBCH) != 0) {
+		od = opendir(opath);
+		if (!od) usage(argv[0], "Could not open output directory", 1, verb);
+		closedir(od);
+	}
 
 	// Standard pattern settings (based on eggdrop..)
 	if (!ipat[0] && !aut) strcpy(ipat, ISPAT);
 	if (!opat[0]) strcpy(opat, OSPAT);
 
 	// Validate patterns
-	if (vpat(ipat) < 0) usage(argv[0], "Invalid input pattern", 1, verb);
-	if (vpat(opat) < 0) usage(argv[0], "Invalid output pattern", 1, verb);
-	if (strncmp(ipref, opref, MBCH) == 0 &&
+	if (vpat(ipat)) usage(argv[0], "Invalid input pattern", 1, verb);
+	if (vpat(opat)) usage(argv[0], "Invalid output pattern", 1, verb);
+	if (strncmp(ipath, opath, MBCH) == 0 &&
+			strncmp(ipref, opref, MBCH) == 0 &&
 			strncmp(ipat, opat, PDCH) == 0)
-			usage(argv[0], "Input and output is exact match", 1, verb);
-
-	// Check for specified output dir
-	if (!opath[0]) {
-		strcpy(opath, ipath);
-	} else {
-		if (opath[strlen(opath) - 1] != DDIV) opath[strlen(opath)] = DDIV;
-		od = opendir(opath);
-		if (!od) usage(argv[0], "Could not open output directory", 1, verb);
-		closedir(od);
-	}
+			usage(argv[0], "Input and output are exact match", 1, verb);
 
 	// Check if output prefix has been spcified
 	if (!opref[0]) strcpy(opref, ipref);
 
+	id = opendir(ipath);
 	if (!id) usage(argv[0], "Could not read directory", 1, verb);
 
 	int iplen = strlen(ipref);
@@ -469,7 +446,7 @@ int main(int argc, char *argv[]) {
 			if (dir->d_name[a] != ipref[a]) break;
 			if (a == iplen - 1) {
 
-				snprintf(iname, MBCH, "%s%s", ipath, dir->d_name);
+				snprintf(iname, MBCH, "%s%c%s", ipath, DDIV, dir->d_name);
 
 				if (aut) strcpy(ipat, adpat(dir->d_name + iplen,
 						&date, opat, cap));
@@ -481,7 +458,7 @@ int main(int argc, char *argv[]) {
 
 				} else {
 					strcpy(buf, mkoname(opat, opref, oname, &date, cap));
-					snprintf(oname, MBCH, "%s%s", opath, buf);
+					snprintf(oname, MBCH, "%s%c%s", opath, DDIV, buf);
 					if (testr || verb) printf("%s -> %s\n", iname, oname);
 					if (!testr) rename(iname, oname);
 				}
