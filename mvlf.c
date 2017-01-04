@@ -46,6 +46,7 @@
 #define DSLEN 3
 #define TLEN 2
 
+#define BBCH 512
 #define MBCH 256
 #define SBCH 32
 #define PDCH 16
@@ -171,55 +172,54 @@ int fld(const char *suf) {
 }
 
 // Make new output name
-char *mkoname(const char *opat, const char *opref, char *oname,
+char *mkoname(const char *opat, const char *opref, 
 		ymdt *date, const int cap) {
 
-	char *buf = calloc(SBCH, sizeof(char));
+	char *sbuf = calloc(SBCH, sizeof(char));
+	char *bbuf = calloc(MBCH, sizeof(char));
 
 	int oplen = strlen(opat);
 	unsigned int a = 0;
 
-	memset(oname, 0, MBCH);
-	strcpy(oname, opref);
+	strcpy(bbuf, opref);
 
 	for (a = 0; a < oplen; a++) {
 		if(opat[a] == YL) {
-			snprintf(buf, SBCH, "%04d", date->y);
+			snprintf(sbuf, SBCH, "%04d", date->y);
 
 		} else if(opat[a] == YS) {
 			if(date->y < HCENT) date->y -= LCENT;
 			else date->y -= HCENT;
-			snprintf(buf, SBCH, "%02d", date->y);
+			snprintf(sbuf, SBCH, "%02d", date->y);
 
 		} else if(opat[a] == ML) {
-			strcpy(buf, ml[(date->m-1)]);
+			strcpy(sbuf, ml[(date->m-1)]);
 
 		} else if(opat[a] == MN) {
-			snprintf(buf, SBCH, "%02d", date->m);
+			snprintf(sbuf, SBCH, "%02d", date->m);
 
 		} else if(opat[a] == MS) {
-			strcpy(buf, ms[(date->m-1)]);
+			strcpy(sbuf, ms[(date->m-1)]);
 
 		} else if(opat[a] == DL) {
-			strcpy(buf, dl[(date->d-1)]);
+			strcpy(sbuf, dl[(date->d-1)]);
 
 		} else if(opat[a] == DS) {
-			strcpy(buf, ds[(date->d-1)]);
+			strcpy(sbuf, ds[(date->d-1)]);
 
 		} else if(opat[a] == DT) {
-			snprintf(buf, SBCH, "%02d", date->t);
+			snprintf(sbuf, SBCH, "%02d", date->t);
 
 		} else {
-			snprintf(buf, SBCH, "%c", opat[a]);
+			snprintf(sbuf, SBCH, "%c", opat[a]);
 		}
 
-		if (cap) buf[0] = toupper(buf[0]);
+		if (cap) sbuf[0] = toupper(sbuf[0]);
 
-		strcat(oname, buf);
-		memset(buf, 0, SBCH);
+		strcat(bbuf, sbuf);
 	}
 
-	return oname;
+	return bbuf;
 }
 
 // Read time data from pattern
@@ -278,8 +278,6 @@ ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 		} else {
 			c++;
 		}
-
-		memset(buf, 0, SBCH);
 	}
 
 	return date;
@@ -335,19 +333,17 @@ int main(int argc, char *argv[]) {
 	DIR *id, *od;
 	struct dirent *dir;
 
-	char *ipath = calloc(MBCH, sizeof(char));
-	char *opath = calloc(MBCH, sizeof(char));
+	char *ipath = calloc(BBCH, sizeof(char));
+	char *opath = calloc(BBCH, sizeof(char));
 
-	char *iname = calloc(MBCH, sizeof(char));
-	char *oname = calloc(MBCH, sizeof(char));
+	char *iname = calloc(BBCH, sizeof(char));
+	char *oname = calloc(BBCH, sizeof(char));
 
 	char *ipat = calloc(PDCH + 1, sizeof(char));
 	char *opat = calloc(PDCH + 1, sizeof(char));
 
-	char *ipref = calloc(MBCH, sizeof(char));
-	char *opref = calloc(MBCH, sizeof(char));
-
-	char *buf = calloc(MBCH, sizeof(char));
+	char *ipref = calloc(MBCH - PDCH, sizeof(char));
+	char *opref = calloc(MBCH - PDCH, sizeof(char));
 
 	int optc;
 	int aut = 0, cap = 0, testr = 0, verb = 0;
@@ -400,8 +396,8 @@ int main(int argc, char *argv[]) {
 	if (argc > optind + 2) {
 		usage(argv[0], "Too many arguments", 1, verb);
 	} else if (argc > optind) {
-		strncpy(ipath, argv[optind], MBCH);
-		if (argc == optind + 2) strncpy(opath, argv[optind + 1], MBCH);
+		strncpy(ipath, argv[optind], BBCH);
+		if (argc == optind + 2) strncpy(opath, argv[optind + 1], BBCH);
 	} else {
 		usage(argv[0], "Nothing to do", 0, verb);
 	}
@@ -414,7 +410,7 @@ int main(int argc, char *argv[]) {
 	strcpy(opref, basename(opath));
 	strcpy(opath, dirname(opath));
 	
-	if (strncmp(ipath, opath, MBCH) != 0) {
+	if (strncmp(ipath, opath, BBCH) != 0) {
 		od = opendir(opath);
 		if (!od) usage(argv[0], "Could not open output directory", 1, verb);
 		closedir(od);
@@ -427,8 +423,8 @@ int main(int argc, char *argv[]) {
 	// Validate patterns
 	if (vpat(ipat)) usage(argv[0], "Invalid input pattern", 1, verb);
 	if (vpat(opat)) usage(argv[0], "Invalid output pattern", 1, verb);
-	if (strncmp(ipath, opath, MBCH) == 0 &&
-			strncmp(ipref, opref, MBCH) == 0 &&
+	if (strncmp(ipath, opath, BBCH) == 0 &&
+			strncmp(ipref, opref, MBCH - PDCH) == 0 &&
 			strncmp(ipat, opat, PDCH) == 0)
 			usage(argv[0], "Input and output are exact match", 1, verb);
 
@@ -446,7 +442,7 @@ int main(int argc, char *argv[]) {
 			if (dir->d_name[a] != ipref[a]) break;
 			if (a == iplen - 1) {
 
-				snprintf(iname, MBCH, "%s%c%s", ipath, DDIV, dir->d_name);
+				snprintf(iname, BBCH, "%s%c%s", ipath, DDIV, dir->d_name);
 
 				if (aut) strcpy(ipat, adpat(dir->d_name + iplen,
 						&date, opat, cap));
@@ -457,13 +453,11 @@ int main(int argc, char *argv[]) {
 						fprintf(stderr, "Error: could not rename %s\n", iname);
 
 				} else {
-					strcpy(buf, mkoname(opat, opref, oname, &date, cap));
-					snprintf(oname, MBCH, "%s%c%s", opath, DDIV, buf);
+					snprintf(oname, BBCH, "%s%c%s", opath, DDIV, 
+							mkoname(opat, opref, &date, cap));
 					if (testr || verb) printf("%s -> %s\n", iname, oname);
 					if (!testr) rename(iname, oname);
 				}
-
-				memset(buf, 0, MBCH);
 			}
 		}
 	}
