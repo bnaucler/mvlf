@@ -51,29 +51,29 @@
 #define SBCH 32
 #define PDCH 16
 
-char ms[12][4] = {
+static const char ms[12][4] = {
 	"jan", "feb", "mar", "apr",
 	"may", "jun", "jul", "aug",
 	"sep", "oct", "nov", "dec"
 };
 
-char ml[12][10] = {
+static const char ml[12][10] = {
 	"january", "february", "march", "april",
 	"may", "june", "july", "august",
 	"september", "october", "november", "december"
 };
 
-char ds[7][4] = {
+static const char ds[7][4] = {
 	"mon", "tue", "wed", "thu",
 	"fri", "sat", "sun"
 };
 
-char dl[7][10] = {
+static const char dl[7][10] = {
 	"monday", "tuesday", "wednesday", "thursday",
 	"friday", "saturday", "sunday"
 };
 
-char stpat[4][6] = {
+static const char stpat[4][6] = {
 	"tmY", "Y/n/t", "t/n/y", "t/n/Y"
 };
 
@@ -172,7 +172,7 @@ int fld(const char *suf) {
 }
 
 // Make new output name
-char *mkoname(const char *opat, const char *opref, 
+char *mkoname(const char *opat, const char *opref,
 		ymdt *date, const int cap) {
 
 	char *sbuf = calloc(SBCH, sizeof(char));
@@ -219,6 +219,7 @@ char *mkoname(const char *opat, const char *opref,
 		strcat(bbuf, sbuf);
 	}
 
+	free(sbuf);
 	return bbuf;
 }
 
@@ -232,7 +233,6 @@ ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 
 	memset(date, 0, sizeof(*date));
 
-	// Gather data from input string
 	for (a = 0; a < iplen; a++) {
 		if(ipat[a] == YL) {
 			for(b = 0; b < YLLEN; b++) { buf[b] = isuf[(b+c)]; }
@@ -278,8 +278,10 @@ ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 		} else {
 			c++;
 		}
+		memset(buf, 0, SBCH);
 	}
 
+	free(buf);
 	return date;
 }
 
@@ -333,17 +335,17 @@ int main(int argc, char *argv[]) {
 	DIR *id, *od;
 	struct dirent *dir;
 
-	char *ipath = calloc(BBCH, sizeof(char));
-	char *opath = calloc(BBCH, sizeof(char));
+	char ipath[BBCH];
+	char opath[BBCH];
 
-	char *iname = calloc(BBCH, sizeof(char));
-	char *oname = calloc(BBCH, sizeof(char));
+	char iname[BBCH];
+	char oname[BBCH];
 
-	char *ipat = calloc(PDCH + 1, sizeof(char));
-	char *opat = calloc(PDCH + 1, sizeof(char));
+	char ipat[(PDCH + 1)];
+	char opat[(PDCH + 1)];
 
-	char *ipref = calloc(MBCH - PDCH, sizeof(char));
-	char *opref = calloc(MBCH - PDCH, sizeof(char));
+	char ipref[(MBCH - PDCH)];
+	char opref[(MBCH - PDCH)];
 
 	int optc;
 	int aut = 0, cap = 0, testr = 0, verb = 0;
@@ -409,8 +411,8 @@ int main(int argc, char *argv[]) {
 	strcpy(ipath, dirname(ipath));
 	strcpy(opref, basename(opath));
 	strcpy(opath, dirname(opath));
-	
-	if (strncmp(ipath, opath, BBCH) != 0) {
+
+	if (strncmp(ipath, opath, BBCH)) {
 		od = opendir(opath);
 		if (!od) usage(argv[0], "Could not open output directory", 1, verb);
 		closedir(od);
@@ -453,7 +455,7 @@ int main(int argc, char *argv[]) {
 						fprintf(stderr, "Error: could not rename %s\n", iname);
 
 				} else {
-					snprintf(oname, BBCH, "%s%c%s", opath, DDIV, 
+					snprintf(oname, BBCH, "%s%c%s", opath, DDIV,
 							mkoname(opat, opref, &date, cap));
 					if (testr || verb) printf("%s -> %s\n", iname, oname);
 					if (!testr) rename(iname, oname);

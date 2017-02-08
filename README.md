@@ -4,7 +4,7 @@ A tool for moving logfiles (or other datestamped files) with date format convers
 ## Written by
 Björn Westerberg Nauclér (mail@bnaucler.se) 2016
 
-Compiled and tested on Arch Linux 4.8 and FreeBSD 11
+Compiled and tested on Arch Linux 4.9 and FreeBSD 11.
 
 ## Installation
 `sudo make all install`  
@@ -33,7 +33,7 @@ M = Month (January, February...)
 m = Month shorthand (Jan, Feb...)  
 n = Month number (01, 02...)  
 
-D = Day (Monday, Tuesday..)  
+D = Day (Monday, Tuesday...)  
 d = Day shorthand (Mon, Tue...)  
 t = Date (31, 01...)
 
