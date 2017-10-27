@@ -98,12 +98,13 @@ typedef struct flag {
     char ipref[PTCH];
     char opref[PTCH];
 
-    int aut, cap, testr, verb, iplen;
+    int afl, cfl, tfl, vfl;
+    int iplen;
 } flag;
 
-static int usage(char *cmd, char *err, int ret, int verb) {
+static int usage(char *cmd, char *err, int ret, int vfl) {
 
-    if(err[0] && verb > -1) fprintf(stderr, "Error: %s\n", err);
+    if(err[0] && vfl > -1) fprintf(stderr, "Error: %s\n", err);
 
     printf("Move Logfiles v%.1f\n"
            "Usage: %s [-achioqtv] [dir/prefix] [dir/prefix]\n"
@@ -199,19 +200,18 @@ static int fld(const char *suf) {
 }
 
 // Make new output name
-static char *mkoname(const char *opat, const char *opref,
-        ymdt *date, const int cap) {
+static char *mkoname(ymdt *date, const flag *f) {
 
-    char *sbuf = calloc(SBCH, sizeof(char));
+    char sbuf[SBCH];
     char *bbuf = calloc(MBCH, sizeof(char));
 
-    int oplen = strlen(opat);
+    int oplen = strlen(f->opat);
     unsigned int a = 0;
 
-    strncpy(bbuf, opref, MBCH);
+    strncpy(bbuf, f->opref, MBCH);
 
     for(a = 0; a < oplen; a++) {
-        switch(opat[a]) {
+        switch(f->opat[a]) {
 
             case(YL):
                 snprintf(sbuf, SBCH, "%04d", date->y);
@@ -248,11 +248,11 @@ static char *mkoname(const char *opat, const char *opref,
             break;
 
             default:
-                snprintf(sbuf, SBCH, "%c", opat[a]);
+                snprintf(sbuf, SBCH, "%c", f->opat[a]);
             break;
         }
 
-        if(cap) sbuf[0] = toupper(sbuf[0]);
+        if(f->cfl) sbuf[0] = toupper(sbuf[0]);
         strcat(bbuf, sbuf);
     }
 
@@ -263,7 +263,7 @@ static char *mkoname(const char *opat, const char *opref,
 // Read date from pattern
 static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 
-    char *buf = calloc(SBCH, sizeof(char));
+    char buf[SBCH];
 
     int iplen = strlen(ipat);
     unsigned int a = 0, b = 0, c = 0;
@@ -328,7 +328,6 @@ static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
         memset(buf, 0, SBCH);
     }
 
-    free(buf);
     return date;
 }
 
@@ -361,7 +360,7 @@ static int chkdate(ymdt *date, const char *opat) {
 }
 
 // Autodetect pattern
-static char *adpat(const char *isuf, ymdt *date, const char *opat, const int cap) {
+static char *adpat(const char *isuf, ymdt *date, const flag *f) {
 
     char *pat = calloc(PDCH, sizeof(char));
 
@@ -371,7 +370,7 @@ static char *adpat(const char *isuf, ymdt *date, const char *opat, const int cap
     for(a = 0; a < numpat; a++) {
         strncpy(pat, stpat[a], PDCH);
         rpat(isuf, pat, date);
-        if(!chkdate(date, opat)) return pat;
+        if(!chkdate(date, f->opat)) return pat;
     }
 
     return ERRSTR;
@@ -385,15 +384,15 @@ static char **opts(int *argc, char **argv, flag *f) {
         switch(optc) {
 
             case 'a':
-                f->aut++;
+                f->afl++;
                 break;
 
             case 'c':
-                f->cap++;
+                f->cfl++;
                 break;
 
             case 'h':
-                usage(f->cmd, "", 0, f->verb);
+                usage(f->cmd, "", 0, f->vfl);
                 break;
 
             case 'i':
@@ -405,19 +404,19 @@ static char **opts(int *argc, char **argv, flag *f) {
                 break;
 
             case 'q':
-                f->verb--;
+                f->vfl--;
                 break;
 
             case 't':
-                f->testr++;
+                f->tfl++;
                 break;
 
             case 'v':
-                f->verb++;
+                f->vfl++;
                 break;
 
             default:
-                usage(f->cmd, "", 1, f->verb);
+                usage(f->cmd, "", 1, f->vfl);
                 break;
         }
     }
@@ -429,7 +428,7 @@ static char **opts(int *argc, char **argv, flag *f) {
 static flag *getflag(const char *cmd) {
 
     flag *f = calloc(1, sizeof(flag));
-    f->aut = f->cap = f->testr = f->verb = 0;
+    f->afl = f->cfl = f->tfl = f->vfl = 0;
     strncpy(f->cmd, cmd, SBCH);
 
     return f;
@@ -448,8 +447,8 @@ int main(int argc, char **argv) {
     argv = opts(&argc, argv, f);
 
     // Input verification
-    if(argc > 1) usage(f->cmd, "Too many arguments", 1, f->verb);
-    else if(argc < 0) usage(f->cmd, "Nothing to do", 0, f->verb);
+    if(argc > 1) usage(f->cmd, "Too many arguments", 1, f->vfl);
+    else if(argc < 0) usage(f->cmd, "Nothing to do", 0, f->vfl);
 
     // Get paths
     strncpy(f->ipath, argv[0], BBCH);
@@ -463,35 +462,35 @@ int main(int argc, char **argv) {
     strncpy(f->opref, basename(f->opath), PTCH);
     strncpy(f->opath, dirname(f->opath), BBCH);
 
+    f->iplen = strlen(f->ipref);
+
     // Validate output directory
     if(strncmp(f->ipath, f->opath, BBCH)) {
         od = opendir(f->opath);
-        if(!od) usage(f->cmd, "Could not open output directory", 1, f->verb);
+        if(!od) usage(f->cmd, "Could not open output directory", 1, f->vfl);
         closedir(od);
     }
 
     // Standard pattern settings (based on eggdrop..)
-    if(!f->ipat[0] && !f->aut) strncpy(f->ipat, ISPAT, PDCH);
+    if(!f->ipat[0] && !f->afl) strncpy(f->ipat, ISPAT, PDCH);
     if(!f->opat[0]) strncpy(f->opat, OSPAT, PDCH);
 
     // Validate patterns
-    if(vpat(f->ipat)) usage(f->cmd, "Invalid input pattern", 1, f->verb);
-    if(vpat(f->opat)) usage(f->cmd, "Invalid output pattern", 1, f->verb);
+    if(vpat(f->ipat)) usage(f->cmd, "Invalid input pattern", 1, f->vfl);
+    if(vpat(f->opat)) usage(f->cmd, "Invalid output pattern", 1, f->vfl);
     if(!strncmp(f->ipath, f->opath, BBCH) &&
        !strncmp(f->ipref, f->opref, PTCH) &&
        !strncmp(f->ipat, f->opat, PDCH))
-            usage(f->cmd, "Input and output are exact match", 1, f->verb);
+            usage(f->cmd, "Input and output are exact match", 1, f->vfl);
 
     // Check if output prefix has been spcified
     if(!f->opref[0]) strncpy(f->opref, f->ipref, PTCH);
 
     // Open input dir
     id = opendir(f->ipath);
-    if(!id) usage(f->cmd, "Could not read directory", 1, f->verb);
+    if(!id) usage(f->cmd, "Could not read directory", 1, f->vfl);
 
-    f->iplen = strlen(f->ipref);
-
-    if(f->verb > 1)
+    if(f->vfl > 1)
     printf("DEBUG output:\n"
         "ipath: %s, "
         "opath: %s, "
@@ -511,19 +510,18 @@ int main(int argc, char **argv) {
 
                 snprintf(f->iname, BBCH, "%s%c%s", f->ipath, DDIV, dir->d_name);
 
-                if(f->aut) strncpy(f->ipat, adpat(dir->d_name + f->iplen,
-                        &date, f->opat, f->cap), PDCH);
+                if(f->afl) strncpy(f->ipat, adpat(dir->d_name + f->iplen,
+                        &date, f), PDCH);
                 else rpat(dir->d_name + f->iplen, f->ipat, &date);
 
                 if(chkdate(&date, f->opat)) {
-                    if(f->verb > -1)
+                    if(f->vfl > -1)
                         fprintf(stderr, "Error: could not rename %s\n", f->iname);
 
                 } else {
-                    snprintf(f->oname, BBCH, "%s%c%s", f->opath, DDIV,
-                            mkoname(f->opat, f->opref, &date, f->cap));
-                    if(f->testr || f->verb) printf("%s -> %s\n", f->iname, f->oname);
-                    if(!f->testr) rename(f->iname, f->oname);
+                    snprintf(f->oname, BBCH, "%s%c%s", f->opath, DDIV, mkoname(&date, f));
+                    if(f->tfl || f->vfl) printf("%s -> %s\n", f->iname, f->oname);
+                    if(!f->tfl) rename(f->iname, f->oname);
                 }
             }
         }
