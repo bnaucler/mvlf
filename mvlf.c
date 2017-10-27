@@ -114,7 +114,7 @@ int vpat(const char *p) {
         else if((p[a] == ML || p[a] == MS || p[a] == MN) && !hasm) hasm++;
         else if((p[a] == DL || p[a] == DS) && !hasd) hasd++;
         else if(p[a] == DT && !hast) hast++;
-        else if(!isalpha(p[a]) && !isdigit(p[a])) continue;
+        else if(!isalnum(p[a])) continue;
         else return 1;
     }
 
@@ -184,34 +184,45 @@ char *mkoname(const char *opat, const char *opref,
     strcpy(bbuf, opref);
 
     for(a = 0; a < oplen; a++) {
-        if(opat[a] == YL) {
-            snprintf(sbuf, SBCH, "%04d", date->y);
+        switch(opat[a]) {
+        
+            case(YL):
+                snprintf(sbuf, SBCH, "%04d", date->y);
+            break;
 
-        } else if(opat[a] == YS) {
-            if(date->y < HCENT) date->y -= LCENT;
-            else date->y -= HCENT;
-            snprintf(sbuf, SBCH, "%02d", date->y);
+            case(YS):
+                if(date->y < HCENT) date->y -= LCENT;
+                else date->y -= HCENT;
+                snprintf(sbuf, SBCH, "%02d", date->y);
+            break;
 
-        } else if(opat[a] == ML) {
-            strcpy(sbuf, ml[(date->m-1)]);
+            case(ML):
+                strcpy(sbuf, ml[(date->m-1)]);
+            break;
 
-        } else if(opat[a] == MN) {
-            snprintf(sbuf, SBCH, "%02d", date->m);
+            case(MN):
+                snprintf(sbuf, SBCH, "%02d", date->m);
+            break;
 
-        } else if(opat[a] == MS) {
-            strcpy(sbuf, ms[(date->m-1)]);
+            case(MS):
+                strcpy(sbuf, ms[(date->m-1)]);
+            break;
 
-        } else if(opat[a] == DL) {
-            strcpy(sbuf, dl[(date->d-1)]);
+            case(DL):
+                strcpy(sbuf, dl[(date->d-1)]);
+            break;
 
-        } else if(opat[a] == DS) {
-            strcpy(sbuf, ds[(date->d-1)]);
+            case(DS):
+                strcpy(sbuf, ds[(date->d-1)]);
+            break;
 
-        } else if(opat[a] == DT) {
-            snprintf(sbuf, SBCH, "%02d", date->t);
+            case(DT):
+                snprintf(sbuf, SBCH, "%02d", date->t);
+            break;
 
-        } else {
-            snprintf(sbuf, SBCH, "%c", opat[a]);
+            default:
+                snprintf(sbuf, SBCH, "%c", opat[a]);
+            break;
         }
 
         if(cap) sbuf[0] = toupper(sbuf[0]);
@@ -231,53 +242,63 @@ ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
     int iplen = strlen(ipat);
     unsigned int a = 0, b = 0, c = 0;
 
-    memset(date, 0, sizeof(*date));
+    memset(date, 0, sizeof(*date)); // redundant?
 
     for(a = 0; a < iplen; a++) {
-        if(ipat[a] == YL) {
-            for(b = 0; b < YLLEN; b++) { buf[b] = isuf[(b+c)]; }
-            date->y = atoi(buf);
-            c += YLLEN;
+        switch(ipat[a]) {
+            case(YL):
+                for(b = 0; b < YLLEN; b++) { buf[b] = isuf[(b+c)]; }
+                date->y = atoi(buf);
+                c += YLLEN;
+            break;
+        
+            case(YS):
+                for(b = 0; b < YSLEN; b++) { buf[b] = isuf[(b+c)]; }
+                date->y = atoi(buf);
+                if(date->y > YBR) date->y += LCENT;
+                else date->y += HCENT;
+                c += YSLEN;
+            break;
 
-        } else if(ipat[a] == YS) {
-            for(b = 0; b < YSLEN; b++) { buf[b] = isuf[(b+c)]; }
-            date->y = atoi(buf);
-            if(date->y > YBR) date->y += LCENT;
-            else date->y += HCENT;
-            c += YSLEN;
+            case(ML):
+                date->m = flm(isuf);
+                c += strlen(ml[(date->m - 1)]);
+            break;
 
-        } else if(ipat[a] == ML) {
-            date->m = flm(isuf);
-            c += strlen(ml[(date->m - 1)]);
+            case(MS):
+                for(b = 0; b < MSLEN; b++) { buf[b] = isuf[(b+c)]; }
+                date->m = mnum(buf);
+                c += MSLEN;
+            break;
 
-        } else if(ipat[a] == MS) {
+            case(MN):
+                for(b = 0; b < MNLEN; b++) { buf[b] = isuf[(b+c)]; }
+                date->m = atoi(buf);
+                c += MNLEN;
+            break;
 
-            for(b = 0; b < MSLEN; b++) { buf[b] = isuf[(b+c)]; }
-            date->m = mnum(buf);
-            c += MSLEN;
+            case(DL):
+                date->d = fld(isuf);
+                c += strlen(dl[(date->d - 1)]);
+            break;
 
-        } else if(ipat[a] == MN) {
-            for(b = 0; b < MNLEN; b++) { buf[b] = isuf[(b+c)]; }
-            date->m = atoi(buf);
-            c += MNLEN;
+            case(DS):
+                for(b = 0; b < DSLEN; b++) { buf[b] = isuf[(b+c)]; }
+                date->d = dnum(buf);
+                c += DSLEN;
+            break;
 
-        } else if(ipat[a] == DL) {
-            date->d = fld(isuf);
-            c += strlen(dl[(date->d - 1)]);
+            case(DT):
+                for(b = 0; b < TLEN; b++) { buf[b] = isuf[(b+c)]; }
+                date->t = atoi(buf);
+                c += TLEN;
+            break;
 
-        } else if(ipat[a] == DS) {
-            for(b = 0; b < DSLEN; b++) { buf[b] = isuf[(b+c)]; }
-            date->d = dnum(buf);
-            c += DSLEN;
-
-        } else if(ipat[a] == DT) {
-            for(b = 0; b < TLEN; b++) { buf[b] = isuf[(b+c)]; }
-            date->t = atoi(buf);
-            c += TLEN;
-
-        } else {
-            c++;
+            default:
+                c++;
+            break;
         }
+
         memset(buf, 0, SBCH);
     }
 
