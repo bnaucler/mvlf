@@ -134,18 +134,16 @@ static int matoi(char* str) {
 // Verify pattern vaildity
 static int vpat(const char *p) {
 
-    unsigned int a = 0;
-    int len = strlen(p);
     int hasy = 0, hasm = 0, hasd = 0, hast = 0;
 
-    for(a = 0; a < len; a++) {
-        if((p[a] == YL || p[a] == YS) && !hasy) hasy++;
-        else if((p[a] == ML || p[a] == MS || p[a] == MN) && !hasm) hasm++;
-        else if((p[a] == DL || p[a] == DS) && !hasd) hasd++;
-        else if(p[a] == DT && !hast) hast++;
-        else if(!isalnum(p[a])) continue;
+    do {
+        if((*p == YL || *p == YS) && !hasy) hasy++;
+        else if((*p == ML || *p == MS || *p == MN) && !hasm) hasm++;
+        else if((*p == DL || *p == DS) && !hasd) hasd++;
+        else if(*p == DT && !hast) hast++;
+        else if(!isalnum(*p)) continue;
         else return 1;
-    }
+    } while(*++p);
 
     return 0;
 }
@@ -199,19 +197,16 @@ static int fld(const char *suf) {
 }
 
 // Make new output name
-static char *mkoname(ymdt *date, const flag *f) {
+static char *mkoname(ymdt *date, flag *f) {
 
     char sbuf[SBCH];
     char *bbuf = calloc(MBCH, sizeof(char));
-
-    int oplen = strlen(f->opat);
-    unsigned int a = 0;
+    char *p = f->opat;
 
     strncpy(bbuf, f->opref, MBCH);
 
-    for(a = 0; a < oplen; a++) {
-        switch(f->opat[a]) {
-
+    while(*p) {
+        switch(*p) {
             case(YL):
                 snprintf(sbuf, SBCH, "%04d", date->y);
             break;
@@ -247,12 +242,13 @@ static char *mkoname(ymdt *date, const flag *f) {
             break;
 
             default:
-                snprintf(sbuf, SBCH, "%c", f->opat[a]);
+                snprintf(sbuf, SBCH, "%c", *p);
             break;
         }
 
         if(f->cfl) sbuf[0] = toupper(sbuf[0]);
-        strcat(bbuf, sbuf);
+        strncat(bbuf, sbuf, MBCH);
+        p++;
     }
 
     return bbuf;
@@ -263,67 +259,65 @@ static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 
     char buf[SBCH];
 
-    int iplen = strlen(ipat);
-    unsigned int a = 0, b = 0, c = 0;
-
     memset(date, 0, sizeof(*date));
 
-    for(a = 0; a < iplen; a++) {
-        switch(ipat[a]) {
+    while(*ipat) {
+        switch(*ipat) {
             case(YL):
-                for(b = 0; b < YLLEN; b++) { buf[b] = isuf[(b+c)]; }
+                memcpy(buf, isuf, YLLEN);
                 date->y = matoi(buf);
-                c += YLLEN;
+                isuf += YLLEN;
             break;
 
             case(YS):
-                for(b = 0; b < YSLEN; b++) { buf[b] = isuf[(b+c)]; }
+                memcpy(buf, isuf, YSLEN);
                 date->y = matoi(buf);
-                if(date->y > YBR) date->y += LCENT;
-                else date->y += HCENT;
-                c += YSLEN;
+                date->y += date->y > YBR ? LCENT : HCENT;
+                isuf += YSLEN;
             break;
 
             case(ML):
                 date->m = flm(isuf);
-                c += strlen(ml[(date->m - 1)]);
+                isuf += strlen(ml[(date->m - 1)]);
             break;
 
             case(MS):
-                for(b = 0; b < MSLEN; b++) { buf[b] = isuf[(b+c)]; }
+                memcpy(buf, isuf, MSLEN);
+
                 date->m = mnum(buf);
-                c += MSLEN;
+                isuf += MSLEN;
             break;
 
             case(MN):
-                for(b = 0; b < MNLEN; b++) { buf[b] = isuf[(b+c)]; }
+                memcpy(buf, isuf, MNLEN);
                 date->m = matoi(buf);
-                c += MNLEN;
+                isuf += MNLEN;
             break;
 
             case(DL):
                 date->d = fld(isuf);
-                c += strlen(dl[(date->d - 1)]);
+                isuf += strlen(dl[(date->d - 1)]);
             break;
 
             case(DS):
-                for(b = 0; b < DSLEN; b++) { buf[b] = isuf[(b+c)]; }
+                memcpy(buf, isuf, DSLEN);
                 date->d = dnum(buf);
-                c += DSLEN;
+                isuf += DSLEN;
             break;
 
             case(DT):
-                for(b = 0; b < TLEN; b++) { buf[b] = isuf[(b+c)]; }
+                memcpy(buf, isuf, TLEN);
                 date->t = matoi(buf);
-                c += TLEN;
+                isuf += TLEN;
             break;
 
             default:
-                c++;
+                isuf++;
             break;
         }
 
         memset(buf, 0, SBCH);
+        ipat++;
     }
 
     return date;
@@ -331,10 +325,6 @@ static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 
 // Check for data needed to produce output
 static int chkdate(ymdt *date, const char *opat) {
-
-    // int oplen = strlen(opat);
-    // unsigned int a = 0;
-    // for(a = 0; a < oplen; a++) {
 
     while(*opat) {
         if((date->y < LCENT || date->y > HCENT + 99) &&
@@ -345,8 +335,7 @@ static int chkdate(ymdt *date, const char *opat) {
             (*opat == ML || *opat == MS || *opat == MN))
                 return 1;
 
-        if((date->d < 1 || date->d > 7) &&
-            (*opat == DL || *opat == DS))
+        if((date->d < 1 || date->d > 7) && (*opat == DL || *opat == DS))
                 return 1;
 
         if((date->t < 1 || date->t > 31) && (*opat == DT))
