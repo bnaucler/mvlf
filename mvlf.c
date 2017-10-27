@@ -157,7 +157,7 @@ static int arrind(const char *s, const int mxl, const char arr[][mxl]) {
 
     int i = 0;
     
-    while(*arr[i]) { if(strcasestr(s, arr[i++])) return i; }
+    while(arr[i][0]) { if(strcasestr(s, arr[i++])) return i; }
 
     return -1;
 }
@@ -222,10 +222,7 @@ static char *mkoname(char *bbuf, ymdt *date, flag *f) {
 // Read date from pattern
 static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 
-
     char buf[SBCH];
-
-    memset(date, 0, sizeof(*date));
 
     while(*ipat) {
         switch(*ipat) {
@@ -312,7 +309,7 @@ static int chkdate(ymdt *date, const char *opat) {
     return 0;
 }
 
-// Autodetect pattern
+// Autodetect pattern TODO: Remove false positives
 static char *adpat(const char *isuf, ymdt *date, char *pat, const flag *f) {
 
     int numpat = sizeof(stpat) / sizeof(stpat[0]);
@@ -322,6 +319,7 @@ static char *adpat(const char *isuf, ymdt *date, char *pat, const flag *f) {
         strncpy(pat, stpat[a], PDCH);
         rpat(isuf, pat, date);
         if(!chkdate(date, f->opat)) return pat;
+        memset(date, 0, sizeof(*date));
     }
 
     return NULL;
@@ -407,20 +405,20 @@ static void debugprint(const flag *f) {
 }
 
 // Execute move operation
-static int execute(const char *fn, flag *f, ymdt *date) {
+static int execute(const char *fn, flag *f) {
 
     char pat[PDCH];
     char on[MBCH];
+    ymdt date;
 
-    if(f->afl) strncpy(f->ipat, adpat(fn + f->iplen, date, pat, f), PDCH);
-    else rpat(fn + f->iplen, f->ipat, date);
+    if(f->afl) strncpy(f->ipat, adpat(fn + f->iplen, &date, pat, f), PDCH);
+    else rpat(fn + f->iplen, f->ipat, &date);
 
-    if(chkdate(date, f->opat)) return 1;
+    if(chkdate(&date, f->opat)) return 1;
 
     snprintf(f->iname, BBCH, "%s%c%s", f->ipath, DDIV, fn);
-    snprintf(f->oname, BBCH, "%s%c%s", f->opath, DDIV, mkoname(on, date, f));
+    snprintf(f->oname, BBCH, "%s%c%s", f->opath, DDIV, mkoname(on, &date, f));
 
-    if(f->tfl || f->vfl) printf("%s -> %s\n", f->iname, f->oname);
     if(!f->tfl) rename(f->iname, f->oname);
 
     return 0;
@@ -430,7 +428,6 @@ int main(int argc, char **argv) {
 
     DIR *id, *od;
     struct dirent *dir;
-    ymdt date;
 
     // Initialize flags
     flag *f = getflag(argv[0]);
@@ -485,11 +482,12 @@ int main(int argc, char **argv) {
 
     // Loop through directory and process files
     while((dir = readdir(id)) != NULL) {
-        if(!strst(dir->d_name, f->ipref))
-            continue;
+        if(!strst(dir->d_name, f->ipref)) continue;
 
-        if(execute(dir->d_name, f, &date) && f->vfl > -1)
+        if(execute(dir->d_name, f) && f->vfl > -1)
             fprintf(stderr, "Error: could not rename %s\n", f->iname);
+        else if(f->tfl || f->vfl)
+            printf("%s -> %s\n", f->iname, f->oname);
     }
 
     // Cleanup
