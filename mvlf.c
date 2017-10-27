@@ -50,6 +50,7 @@
 #define MBCH 256
 #define SBCH 32
 #define PDCH 16
+#define PTCH (MBCH - PDCH)
 
 static const char ms[12][4] = {
     "jan", "feb", "mar", "apr",
@@ -84,26 +85,27 @@ typedef struct ymdt {
     int t;
 } ymdt;
 
-int usage(char *cmd, char *err, int ret, int verb) {
+static int usage(char *cmd, char *err, int ret, int verb) {
 
     if(err[0] && verb > -1) fprintf(stderr, "Error: %s\n", err);
 
-    printf("Move Logfiles v%.1f\n", VER);
-    printf("Usage: %s [-achioqtv] [dir/prefix] [dir/prefix]\n", cmd);
-    printf("    -a: Autodetect input pattern (experimental)\n");
-    printf("    -c: Capitalize output suffix initials\n");
-    printf("    -h: Show this text\n");
-    printf("    -i: Input pattern (default: %s)\n", ISPAT);
-    printf("    -o: Output pattern (default: %s)\n", OSPAT);
-    printf("    -q: Decrease verbosity level\n");
-    printf("    -t: Test run\n");
-    printf("    -v: Increase verbosity level\n");
+    printf("Move Logfiles v%.1f\n"
+           "Usage: %s [-achioqtv] [dir/prefix] [dir/prefix]\n"
+           "    -a: Autodetect input pattern (experimental)\n"
+           "    -c: Capitalize output suffix initials\n"
+           "    -h: Show this text\n"
+           "    -i: Input pattern (default: %s)\n"
+           "    -o: Output pattern (default: %s)\n"
+           "    -q: Decrease verbosity level\n"
+           "    -t: Test run\n"
+           "    -v: Increase verbosity level\n",
+        VER, cmd, ISPAT, OSPAT);
 
     exit(ret);
 }
 
 // Verify pattern vaildity
-int vpat(const char *p) {
+static int vpat(const char *p) {
 
     unsigned int a = 0;
     int len = strlen(p);
@@ -122,35 +124,33 @@ int vpat(const char *p) {
 }
 
 // Return month number
-int mnum(const char *txm) {
+static int mnum(const char *txm) {
 
     unsigned int a = 0;
     int alen = sizeof(ms) / sizeof(ms[0]);
 
     for(a = 0; a < alen; a++) {
-        if(strcasecmp(txm, ms[a]) == 0) return a + 1;
-        if(strcasecmp(txm, ml[a]) == 0) return a + 1;
+        if(!strcasecmp(txm, ms[a]) || !strcasecmp(txm, ml[a])) return a + 1;
     }
 
     return -1;
 }
 
 // Return weekday number
-int dnum(const char *txd) {
+static int dnum(const char *txd) {
 
     unsigned int a = 0;
     int alen = sizeof(ds) / sizeof(ds[0]);
 
     for(a = 0; a < alen; a++) {
-        if(strcasecmp(txd, ds[a]) == 0) return a + 1;
-        if(strcasecmp(txd, dl[a]) == 0) return a + 1;
+        if(!strcasecmp(txd, ds[a]) || !strcasecmp(txd, dl[a])) return a + 1;
     }
 
     return -1;
 }
 
 // Find long format month name
-int flm(const char *suf) {
+static int flm(const char *suf) {
 
     unsigned int a = 0;
     int alen = sizeof(ml) / sizeof(ml[0]);
@@ -161,7 +161,7 @@ int flm(const char *suf) {
 }
 
 // Find long format weekday name
-int fld(const char *suf) {
+static int fld(const char *suf) {
 
     unsigned int a = 0;
     int alen = sizeof(dl) / sizeof(dl[0]);
@@ -172,7 +172,7 @@ int fld(const char *suf) {
 }
 
 // Make new output name
-char *mkoname(const char *opat, const char *opref,
+static char *mkoname(const char *opat, const char *opref,
         ymdt *date, const int cap) {
 
     char *sbuf = calloc(SBCH, sizeof(char));
@@ -181,11 +181,11 @@ char *mkoname(const char *opat, const char *opref,
     int oplen = strlen(opat);
     unsigned int a = 0;
 
-    strcpy(bbuf, opref);
+    strncpy(bbuf, opref, MBCH);
 
     for(a = 0; a < oplen; a++) {
         switch(opat[a]) {
-        
+
             case(YL):
                 snprintf(sbuf, SBCH, "%04d", date->y);
             break;
@@ -197,7 +197,7 @@ char *mkoname(const char *opat, const char *opref,
             break;
 
             case(ML):
-                strcpy(sbuf, ml[(date->m-1)]);
+                strncpy(sbuf, ml[(date->m-1)], SBCH);
             break;
 
             case(MN):
@@ -205,15 +205,15 @@ char *mkoname(const char *opat, const char *opref,
             break;
 
             case(MS):
-                strcpy(sbuf, ms[(date->m-1)]);
+                strncpy(sbuf, ms[(date->m-1)], SBCH);
             break;
 
             case(DL):
-                strcpy(sbuf, dl[(date->d-1)]);
+                strncpy(sbuf, dl[(date->d-1)], SBCH);
             break;
 
             case(DS):
-                strcpy(sbuf, ds[(date->d-1)]);
+                strncpy(sbuf, ds[(date->d-1)], SBCH);
             break;
 
             case(DT):
@@ -235,7 +235,7 @@ char *mkoname(const char *opat, const char *opref,
 }
 
 // Read time data from pattern
-ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
+static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 
     char *buf = calloc(SBCH, sizeof(char));
 
@@ -251,7 +251,7 @@ ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
                 date->y = atoi(buf);
                 c += YLLEN;
             break;
-        
+
             case(YS):
                 for(b = 0; b < YSLEN; b++) { buf[b] = isuf[(b+c)]; }
                 date->y = atoi(buf);
@@ -307,7 +307,7 @@ ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 }
 
 // Check for data needed to produce output
-int chkdate(ymdt *date, const char *opat) {
+static int chkdate(ymdt *date, const char *opat) {
 
     int oplen = strlen(opat);
     unsigned int a = 0;
@@ -335,15 +335,15 @@ int chkdate(ymdt *date, const char *opat) {
 }
 
 // Autodetect pattern
-char *adpat(const char *isuf, ymdt *date, const char *opat, const int cap) {
+static char *adpat(const char *isuf, ymdt *date, const char *opat, const int cap) {
 
-    char *pat = calloc(PDCH + 1, sizeof(char));
+    char *pat = calloc(PDCH, sizeof(char));
 
     int numpat = sizeof(stpat) / sizeof(stpat[0]);
     unsigned int a = 0;
 
     for(a = 0; a < numpat; a++) {
-        strcpy(pat, stpat[a]);
+        strncpy(pat, stpat[a], PDCH);
         rpat(isuf, pat, date);
         if(!chkdate(date, opat)) return pat;
     }
@@ -362,11 +362,11 @@ int main(int argc, char *argv[]) {
     char iname[BBCH];
     char oname[BBCH];
 
-    char ipat[(PDCH + 1)];
-    char opat[(PDCH + 1)];
+    char ipat[PDCH];
+    char opat[PDCH];
 
-    char ipref[(MBCH - PDCH)];
-    char opref[(MBCH - PDCH)];
+    char ipref[PTCH];
+    char opref[PTCH];
 
     int optc;
     int aut = 0, cap = 0, testr = 0, verb = 0;
@@ -426,12 +426,12 @@ int main(int argc, char *argv[]) {
     }
 
     // Get file names from paths
-    if (!opath[0]) strcpy(opath, ipath);
+    if(!opath[0]) strncpy(opath, ipath, BBCH);
 
-    strcpy(ipref, basename(ipath));
-    strcpy(ipath, dirname(ipath));
-    strcpy(opref, basename(opath));
-    strcpy(opath, dirname(opath));
+    strncpy(ipath, dirname(ipath), BBCH);
+    strncpy(opath, dirname(opath), BBCH);
+    strncpy(ipref, basename(ipath), PTCH);
+    strncpy(opref, basename(opath), PTCH);
 
     if(strncmp(ipath, opath, BBCH)) {
         od = opendir(opath);
@@ -440,8 +440,8 @@ int main(int argc, char *argv[]) {
     }
 
     // Standard pattern settings (based on eggdrop..)
-    if(!ipat[0] && !aut) strcpy(ipat, ISPAT);
-    if(!opat[0]) strcpy(opat, OSPAT);
+    if(!ipat[0] && !aut) strncpy(ipat, ISPAT, PDCH);
+    if(!opat[0]) strncpy(opat, OSPAT, PDCH);
 
     // Validate patterns
     if(vpat(ipat)) usage(argv[0], "Invalid input pattern", 1, verb);
@@ -452,8 +452,9 @@ int main(int argc, char *argv[]) {
             usage(argv[0], "Input and output are exact match", 1, verb);
 
     // Check if output prefix has been spcified
-    if(!opref[0]) strcpy(opref, ipref);
+    if(!opref[0]) strncpy(opref, ipref, PTCH);
 
+    // Open input dir
     id = opendir(ipath);
     if(!id) usage(argv[0], "Could not read directory", 1, verb);
 
@@ -467,8 +468,8 @@ int main(int argc, char *argv[]) {
 
                 snprintf(iname, BBCH, "%s%c%s", ipath, DDIV, dir->d_name);
 
-                if(aut) strcpy(ipat, adpat(dir->d_name + iplen,
-                        &date, opat, cap));
+                if(aut) strncpy(ipat, adpat(dir->d_name + iplen,
+                        &date, opat, cap), PDCH);
                 else rpat(dir->d_name + iplen, ipat, &date);
 
                 if(chkdate(&date, opat)) {
