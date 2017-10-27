@@ -80,11 +80,26 @@ static const char stpat[4][6] = {
 };
 
 typedef struct ymdt {
-    int y;
-    int m;
-    int d;
-    int t;
+    int y, m, d, t;
 } ymdt;
+
+typedef struct flag {
+    char cmd[SBCH];
+
+    char ipath[BBCH];
+    char opath[BBCH];
+
+    char iname[BBCH];
+    char oname[BBCH];
+
+    char ipat[PDCH];
+    char opat[PDCH];
+
+    char ipref[PTCH];
+    char opref[PTCH];
+
+    int aut, cap, testr, verb, iplen;
+} flag;
 
 static int usage(char *cmd, char *err, int ret, int verb) {
 
@@ -245,7 +260,7 @@ static char *mkoname(const char *opat, const char *opref,
     return bbuf;
 }
 
-// Read time data from pattern
+// Read date from pattern
 static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 
     char *buf = calloc(SBCH, sizeof(char));
@@ -362,142 +377,159 @@ static char *adpat(const char *isuf, ymdt *date, const char *opat, const int cap
     return ERRSTR;
 }
 
-int main(int argc, char *argv[]) {
-
-    DIR *id, *od;
-    struct dirent *dir;
-
-    char ipath[BBCH];
-    char opath[BBCH];
-
-    char iname[BBCH];
-    char oname[BBCH];
-
-    char ipat[PDCH];
-    char opat[PDCH];
-
-    char ipref[PTCH];
-    char opref[PTCH];
+static char **opts(int *argc, char **argv, flag *f) {
 
     int optc;
-    int aut = 0, cap = 0, testr = 0, verb = 0;
-    unsigned int a = 0;
 
-    struct ymdt date;
-
-    while((optc = getopt(argc, argv, "achi:o:qtv")) != -1) {
+    while((optc = getopt(*argc, argv, "achi:o:qtv")) != -1) {
         switch(optc) {
 
             case 'a':
-                aut++;
+                f->aut++;
                 break;
 
             case 'c':
-                cap++;
+                f->cap++;
                 break;
 
             case 'h':
-                usage(argv[0], "", 0, verb);
+                usage(f->cmd, "", 0, f->verb);
                 break;
 
             case 'i':
-                strncpy(ipat, optarg, PDCH);
+                strncpy(f->ipat, optarg, PDCH);
                 break;
 
             case 'o':
-                strncpy(opat, optarg, PDCH);
+                strncpy(f->opat, optarg, PDCH);
                 break;
 
             case 'q':
-                verb--;
+                f->verb--;
                 break;
 
             case 't':
-                testr++;
+                f->testr++;
                 break;
 
             case 'v':
-                verb++;
+                f->verb++;
                 break;
 
             default:
-                usage(argv[0], "", 1, verb);
+                usage(f->cmd, "", 1, f->verb);
                 break;
         }
     }
 
+    *argc -= optind;
+    return argv += optind;
+}
+
+static flag *getflag(const char *cmd) {
+
+    flag *f = calloc(1, sizeof(flag));
+    f->aut = f->cap = f->testr = f->verb = 0;
+    strncpy(f->cmd, cmd, SBCH);
+
+    return f;
+}
+
+int main(int argc, char **argv) {
+
+    DIR *id, *od;
+    struct dirent *dir;
+
+    unsigned int a = 0;
+
+    struct ymdt date;
+
+    flag *f = getflag(argv[0]);
+    argv = opts(&argc, argv, f);
+
     // Input verification
-    if(argc > optind + 2) {
-        usage(argv[0], "Too many arguments", 1, verb);
-    } else if(argc > optind) {
-        strncpy(ipath, argv[optind], BBCH);
-        if(argc == optind + 2) strncpy(opath, argv[optind + 1], BBCH);
-    } else {
-        usage(argv[0], "Nothing to do", 0, verb);
-    }
+    if(argc > 1) usage(f->cmd, "Too many arguments", 1, f->verb);
+    else if(argc < 0) usage(f->cmd, "Nothing to do", 0, f->verb);
+
+    // Get paths
+    strncpy(f->ipath, argv[0], BBCH);
+    if(argc > 1) strncpy(f->opath, argv[1], BBCH);
 
     // Get file names from paths
-    if(!opath[0]) strncpy(opath, ipath, BBCH);
+    if(!f->opath[0]) strncpy(f->opath, f->ipath, BBCH);
 
-    strncpy(ipath, dirname(ipath), BBCH);
-    strncpy(opath, dirname(opath), BBCH);
-    strncpy(ipref, basename(ipath), PTCH);
-    strncpy(opref, basename(opath), PTCH);
+    strncpy(f->ipref, basename(f->ipath), PTCH);
+    strncpy(f->ipath, dirname(f->ipath), BBCH);
+    strncpy(f->opref, basename(f->opath), PTCH);
+    strncpy(f->opath, dirname(f->opath), BBCH);
 
     // Validate output directory
-    if(strncmp(ipath, opath, BBCH)) {
-        od = opendir(opath);
-        if(!od) usage(argv[0], "Could not open output directory", 1, verb);
+    if(strncmp(f->ipath, f->opath, BBCH)) {
+        od = opendir(f->opath);
+        if(!od) usage(f->cmd, "Could not open output directory", 1, f->verb);
         closedir(od);
     }
 
     // Standard pattern settings (based on eggdrop..)
-    if(!ipat[0] && !aut) strncpy(ipat, ISPAT, PDCH);
-    if(!opat[0]) strncpy(opat, OSPAT, PDCH);
+    if(!f->ipat[0] && !f->aut) strncpy(f->ipat, ISPAT, PDCH);
+    if(!f->opat[0]) strncpy(f->opat, OSPAT, PDCH);
 
     // Validate patterns
-    if(vpat(ipat)) usage(argv[0], "Invalid input pattern", 1, verb);
-    if(vpat(opat)) usage(argv[0], "Invalid output pattern", 1, verb);
-    if(!strncmp(ipath, opath, BBCH) &&
-       !strncmp(ipref, opref, PTCH) &&
-       !strncmp(ipat, opat, PDCH))
-            usage(argv[0], "Input and output are exact match", 1, verb);
+    if(vpat(f->ipat)) usage(f->cmd, "Invalid input pattern", 1, f->verb);
+    if(vpat(f->opat)) usage(f->cmd, "Invalid output pattern", 1, f->verb);
+    if(!strncmp(f->ipath, f->opath, BBCH) &&
+       !strncmp(f->ipref, f->opref, PTCH) &&
+       !strncmp(f->ipat, f->opat, PDCH))
+            usage(f->cmd, "Input and output are exact match", 1, f->verb);
 
     // Check if output prefix has been spcified
-    if(!opref[0]) strncpy(opref, ipref, PTCH);
+    if(!f->opref[0]) strncpy(f->opref, f->ipref, PTCH);
 
     // Open input dir
-    id = opendir(ipath);
-    if(!id) usage(argv[0], "Could not read directory", 1, verb);
+    id = opendir(f->ipath);
+    if(!id) usage(f->cmd, "Could not read directory", 1, f->verb);
 
-    int iplen = strlen(ipref);
+    f->iplen = strlen(f->ipref);
+
+    if(f->verb > 1)
+    printf("DEBUG output:\n"
+        "ipath: %s, "
+        "opath: %s, "
+        "iname: %s, "
+        "oname: %s, "
+        "ipat: %s, "
+        "opat: %s, "
+        "ipref: %s, "
+        "opref: %s\n",
+        f->ipath, f->opath, f->iname, f->oname, f->ipat, f->opat, f->ipref, f->opref);
 
     while((dir = readdir(id)) != NULL) {
 
-        for(a = 0; a < iplen; a++) {
-            if(dir->d_name[a] != ipref[a]) break;
-            if(a == iplen - 1) {
+        for(a = 0; a < f->iplen; a++) {
+            if(dir->d_name[a] != f->ipref[a]) break;
+            if(a == f->iplen - 1) {
 
-                snprintf(iname, BBCH, "%s%c%s", ipath, DDIV, dir->d_name);
+                snprintf(f->iname, BBCH, "%s%c%s", f->ipath, DDIV, dir->d_name);
 
-                if(aut) strncpy(ipat, adpat(dir->d_name + iplen,
-                        &date, opat, cap), PDCH);
-                else rpat(dir->d_name + iplen, ipat, &date);
+                if(f->aut) strncpy(f->ipat, adpat(dir->d_name + f->iplen,
+                        &date, f->opat, f->cap), PDCH);
+                else rpat(dir->d_name + f->iplen, f->ipat, &date);
 
-                if(chkdate(&date, opat)) {
-                    if(verb > -1)
-                        fprintf(stderr, "Error: could not rename %s\n", iname);
+                if(chkdate(&date, f->opat)) {
+                    if(f->verb > -1)
+                        fprintf(stderr, "Error: could not rename %s\n", f->iname);
 
                 } else {
-                    snprintf(oname, BBCH, "%s%c%s", opath, DDIV,
-                            mkoname(opat, opref, &date, cap));
-                    if(testr || verb) printf("%s -> %s\n", iname, oname);
-                    if(!testr) rename(iname, oname);
+                    snprintf(f->oname, BBCH, "%s%c%s", f->opath, DDIV,
+                            mkoname(f->opat, f->opref, &date, f->cap));
+                    if(f->testr || f->verb) printf("%s -> %s\n", f->iname, f->oname);
+                    if(!f->testr) rename(f->iname, f->oname);
                 }
             }
         }
     }
     closedir(id);
 
+    free(f);
     return 0;
 }
