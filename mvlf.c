@@ -19,7 +19,7 @@
 #include <libgen.h>
 #include <dirent.h>
 
-#define VER 0.2
+#define VER 0.3
 
 #define HCENT 2000
 #define LCENT 1900
@@ -123,7 +123,11 @@ static int usage(char *cmd, char *err, int ret, int vfl) {
 // Safe atoi
 static int matoi(char* str) {
 
-    long lret = strtol(str, NULL, 10);
+    char *ptr;
+
+    long lret = strtol(str, &ptr, 10);
+
+    if(ptr == str) return -1;
 
     if(lret > INT_MAX) lret = INT_MAX;
     else if(lret < INT_MIN) lret = INT_MIN;
@@ -131,7 +135,7 @@ static int matoi(char* str) {
     return (int)lret;
 }
 
-// Verify pattern vaildity
+// Verify pattern validity
 static int vpat(const char *p) {
 
     int hasy = 0, hasm = 0, hasd = 0, hast = 0;
@@ -159,10 +163,9 @@ static int arrind(const char *s, const int mxl, const char arr[][mxl]) {
 }
 
 // Make new output name
-static char *mkoname(ymdt *date, flag *f) {
+static char *mkoname(char *bbuf, ymdt *date, flag *f) {
 
     char sbuf[SBCH];
-    char *bbuf = calloc(MBCH, sizeof(char));
     char *p = f->opat;
 
     strncpy(bbuf, f->opref, MBCH);
@@ -407,15 +410,16 @@ static void debugprint(const flag *f) {
 static int execute(const char *fn, flag *f, ymdt *date) {
 
     char pat[PDCH];
-
-    snprintf(f->iname, BBCH, "%s%c%s", f->ipath, DDIV, fn);
+    char on[MBCH];
 
     if(f->afl) strncpy(f->ipat, adpat(fn + f->iplen, date, pat, f), PDCH);
     else rpat(fn + f->iplen, f->ipat, date);
 
     if(chkdate(date, f->opat)) return 1;
 
-    snprintf(f->oname, BBCH, "%s%c%s", f->opath, DDIV, mkoname(date, f));
+    snprintf(f->iname, BBCH, "%s%c%s", f->ipath, DDIV, fn);
+    snprintf(f->oname, BBCH, "%s%c%s", f->opath, DDIV, mkoname(on, date, f));
+
     if(f->tfl || f->vfl) printf("%s -> %s\n", f->iname, f->oname);
     if(!f->tfl) rename(f->iname, f->oname);
 
@@ -428,6 +432,7 @@ int main(int argc, char **argv) {
     struct dirent *dir;
     ymdt date;
 
+    // Initialize flags
     flag *f = getflag(argv[0]);
     argv = opts(&argc, argv, f);
 
@@ -483,7 +488,7 @@ int main(int argc, char **argv) {
         if(!strst(dir->d_name, f->ipref))
             continue;
 
-        if(execute(dir->d_name, f, &date) && f->vfl < 0)
+        if(execute(dir->d_name, f, &date) && f->vfl > -1)
             fprintf(stderr, "Error: could not rename %s\n", f->iname);
     }
 

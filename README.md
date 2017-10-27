@@ -1,8 +1,8 @@
-# mvlf v0.2
+# mvlf v0.3A
 A tool for moving logfiles (or other datestamped files) with date format conversion.
 
 ## Written by
-Björn Westerberg Nauclér (mail@bnaucler.se) 2016
+Björn Westerberg Nauclér (mail@bnaucler.se) 2016-2017
 
 Compiled and tested on Arch Linux 4.9 and FreeBSD 11.
 
