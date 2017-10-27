@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <limits.h>
 #include <ctype.h>
 #include <libgen.h>
 #include <dirent.h>
@@ -102,6 +103,17 @@ static int usage(char *cmd, char *err, int ret, int verb) {
         VER, cmd, ISPAT, OSPAT);
 
     exit(ret);
+}
+
+// Safe atoi
+static int matoi(char* str) {
+
+    long lret = strtol(str, NULL, 10);
+
+    if(lret > INT_MAX) lret = INT_MAX;
+    else if(lret < INT_MIN) lret = INT_MIN;
+
+    return (int)lret;
 }
 
 // Verify pattern vaildity
@@ -226,7 +238,6 @@ static char *mkoname(const char *opat, const char *opref,
         }
 
         if(cap) sbuf[0] = toupper(sbuf[0]);
-
         strcat(bbuf, sbuf);
     }
 
@@ -242,19 +253,19 @@ static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
     int iplen = strlen(ipat);
     unsigned int a = 0, b = 0, c = 0;
 
-    memset(date, 0, sizeof(*date)); // redundant?
+    memset(date, 0, sizeof(*date));
 
     for(a = 0; a < iplen; a++) {
         switch(ipat[a]) {
             case(YL):
                 for(b = 0; b < YLLEN; b++) { buf[b] = isuf[(b+c)]; }
-                date->y = atoi(buf);
+                date->y = matoi(buf);
                 c += YLLEN;
             break;
 
             case(YS):
                 for(b = 0; b < YSLEN; b++) { buf[b] = isuf[(b+c)]; }
-                date->y = atoi(buf);
+                date->y = matoi(buf);
                 if(date->y > YBR) date->y += LCENT;
                 else date->y += HCENT;
                 c += YSLEN;
@@ -273,7 +284,7 @@ static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 
             case(MN):
                 for(b = 0; b < MNLEN; b++) { buf[b] = isuf[(b+c)]; }
-                date->m = atoi(buf);
+                date->m = matoi(buf);
                 c += MNLEN;
             break;
 
@@ -290,7 +301,7 @@ static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 
             case(DT):
                 for(b = 0; b < TLEN; b++) { buf[b] = isuf[(b+c)]; }
-                date->t = atoi(buf);
+                date->t = matoi(buf);
                 c += TLEN;
             break;
 
@@ -433,6 +444,7 @@ int main(int argc, char *argv[]) {
     strncpy(ipref, basename(ipath), PTCH);
     strncpy(opref, basename(opath), PTCH);
 
+    // Validate output directory
     if(strncmp(ipath, opath, BBCH)) {
         od = opendir(opath);
         if(!od) usage(argv[0], "Could not open output directory", 1, verb);
@@ -446,9 +458,9 @@ int main(int argc, char *argv[]) {
     // Validate patterns
     if(vpat(ipat)) usage(argv[0], "Invalid input pattern", 1, verb);
     if(vpat(opat)) usage(argv[0], "Invalid output pattern", 1, verb);
-    if(strncmp(ipath, opath, BBCH) == 0 &&
-            strncmp(ipref, opref, MBCH - PDCH) == 0 &&
-            strncmp(ipat, opat, PDCH) == 0)
+    if(!strncmp(ipath, opath, BBCH) &&
+       !strncmp(ipref, opref, PTCH) &&
+       !strncmp(ipat, opat, PDCH))
             usage(argv[0], "Input and output are exact match", 1, verb);
 
     // Check if output prefix has been spcified
