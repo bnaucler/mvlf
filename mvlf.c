@@ -35,7 +35,6 @@
 #define DT 't'
 
 #define DDIV '/'
-#define ERRSTR "ERROR"
 
 #define ISPAT "tmY"
 #define OSPAT "Y-n-t"
@@ -256,7 +255,6 @@ static char *mkoname(ymdt *date, const flag *f) {
         strcat(bbuf, sbuf);
     }
 
-    free(sbuf);
     return bbuf;
 }
 
@@ -334,26 +332,27 @@ static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 // Check for data needed to produce output
 static int chkdate(ymdt *date, const char *opat) {
 
-    int oplen = strlen(opat);
-    unsigned int a = 0;
+    // int oplen = strlen(opat);
+    // unsigned int a = 0;
+    // for(a = 0; a < oplen; a++) {
 
-    for(a = 0; a < oplen; a++) {
-
+    while(*opat) {
         if((date->y < LCENT || date->y > HCENT + 99) &&
-            (opat[a] == YL || opat[a] == YS))
+            (*opat == YL || *opat == YS))
                 return 1;
 
         if((date->m < 1 || date->m > 12) &&
-            (opat[a] == ML || opat[a] == MS || opat[a] == MN))
+            (*opat == ML || *opat == MS || *opat == MN))
                 return 1;
 
         if((date->d < 1 || date->d > 7) &&
-            (opat[a] == DL || opat[a] == DS))
+            (*opat == DL || *opat == DS))
                 return 1;
 
-        if((date->t < 1 || date->t > 31) && (opat[a] == DT))
+        if((date->t < 1 || date->t > 31) && (*opat == DT))
                 return 1;
 
+        opat++;
     }
 
     return 0;
@@ -373,9 +372,10 @@ static char *adpat(const char *isuf, ymdt *date, const flag *f) {
         if(!chkdate(date, f->opat)) return pat;
     }
 
-    return ERRSTR;
+    return NULL;
 }
 
+// Get options; reset argc & argv
 static char **opts(int *argc, char **argv, flag *f) {
 
     int optc;
@@ -425,6 +425,7 @@ static char **opts(int *argc, char **argv, flag *f) {
     return argv += optind;
 }
 
+// Create flags and set base configuration
 static flag *getflag(const char *cmd) {
 
     flag *f = calloc(1, sizeof(flag));
@@ -434,14 +435,47 @@ static flag *getflag(const char *cmd) {
     return f;
 }
 
+// Return 0 if s has prefix p
+static int strst(const char *s, const char *p) {
+
+    while(*p++ == *s++);
+
+    if(!*p) return 1;
+    else return 0;
+}
+
+// Dump debug data to stdout
+static void debugprint(const flag *f) {
+
+    printf("DEBUG output: ipath: %s, opath: %s, iname: %s, oname: %s, "
+           "ipat: %s, opat: %s, ipref: %s, opref: %s\n",
+           f->ipath, f->opath, f->iname, f->oname,
+           f->ipat, f->opat, f->ipref, f->opref
+          );
+}
+
+// Execute move operation
+static int execute(const char *fn, flag *f, ymdt *date) {
+
+    snprintf(f->iname, BBCH, "%s%c%s", f->ipath, DDIV, fn);
+
+    if(f->afl) strncpy(f->ipat, adpat(fn + f->iplen, date, f), PDCH);
+    else rpat(fn + f->iplen, f->ipat, date);
+
+    if(chkdate(date, f->opat)) return 1; 
+
+    snprintf(f->oname, BBCH, "%s%c%s", f->opath, DDIV, mkoname(date, f));
+    if(f->tfl || f->vfl) printf("%s -> %s\n", f->iname, f->oname);
+    if(!f->tfl) rename(f->iname, f->oname);
+
+    return 0;
+}
+
 int main(int argc, char **argv) {
 
     DIR *id, *od;
     struct dirent *dir;
-
-    unsigned int a = 0;
-
-    struct ymdt date;
+    ymdt date;
 
     flag *f = getflag(argv[0]);
     argv = opts(&argc, argv, f);
@@ -454,7 +488,7 @@ int main(int argc, char **argv) {
     strncpy(f->ipath, argv[0], BBCH);
     if(argc > 1) strncpy(f->opath, argv[1], BBCH);
 
-    // Get file names from paths
+    // Get folder names and prefixes
     if(!f->opath[0]) strncpy(f->opath, f->ipath, BBCH);
 
     strncpy(f->ipref, basename(f->ipath), PTCH);
@@ -490,44 +524,21 @@ int main(int argc, char **argv) {
     id = opendir(f->ipath);
     if(!id) usage(f->cmd, "Could not read directory", 1, f->vfl);
 
-    if(f->vfl > 1)
-    printf("DEBUG output:\n"
-        "ipath: %s, "
-        "opath: %s, "
-        "iname: %s, "
-        "oname: %s, "
-        "ipat: %s, "
-        "opat: %s, "
-        "ipref: %s, "
-        "opref: %s\n",
-        f->ipath, f->opath, f->iname, f->oname, f->ipat, f->opat, f->ipref, f->opref);
+    // Dump debug data if executed with -vv
+    if(f->vfl > 1) debugprint(f);
 
+    // Loop through directory and process files
     while((dir = readdir(id)) != NULL) {
+        if(!strst(dir->d_name, f->ipref))
+            continue;
 
-        for(a = 0; a < f->iplen; a++) {
-            if(dir->d_name[a] != f->ipref[a]) break;
-            if(a == f->iplen - 1) {
-
-                snprintf(f->iname, BBCH, "%s%c%s", f->ipath, DDIV, dir->d_name);
-
-                if(f->afl) strncpy(f->ipat, adpat(dir->d_name + f->iplen,
-                        &date, f), PDCH);
-                else rpat(dir->d_name + f->iplen, f->ipat, &date);
-
-                if(chkdate(&date, f->opat)) {
-                    if(f->vfl > -1)
-                        fprintf(stderr, "Error: could not rename %s\n", f->iname);
-
-                } else {
-                    snprintf(f->oname, BBCH, "%s%c%s", f->opath, DDIV, mkoname(&date, f));
-                    if(f->tfl || f->vfl) printf("%s -> %s\n", f->iname, f->oname);
-                    if(!f->tfl) rename(f->iname, f->oname);
-                }
-            }
-        }
+        if(execute(dir->d_name, f, &date) && f->vfl < 0)
+            fprintf(stderr, "Error: could not rename %s\n", f->iname);
     }
-    closedir(id);
 
+    // Cleanup
+    closedir(id);
     free(f);
+
     return 0;
 }
