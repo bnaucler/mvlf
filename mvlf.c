@@ -148,50 +148,12 @@ static int vpat(const char *p) {
     return 0;
 }
 
-// Return month number
-static int mnum(const char *txm) {
+// Return s index from arr
+static int arrind(const char *s, const int mxl, const char arr[][mxl]) {
 
-    unsigned int a = 0;
-    int alen = sizeof(ms) / sizeof(ms[0]);
-
-    for(a = 0; a < alen; a++) {
-        if(!strcasecmp(txm, ms[a]) || !strcasecmp(txm, ml[a])) return a + 1;
-    }
-
-    return -1;
-}
-
-// Return weekday number
-static int dnum(const char *txd) {
-
-    unsigned int a = 0;
-    int alen = sizeof(ds) / sizeof(ds[0]);
-
-    for(a = 0; a < alen; a++) {
-        if(!strcasecmp(txd, ds[a]) || !strcasecmp(txd, dl[a])) return a + 1;
-    }
-
-    return -1;
-}
-
-// Find long format month name
-static int flm(const char *suf) {
-
-    unsigned int a = 0;
-    int alen = sizeof(ml) / sizeof(ml[0]);
-
-    for(a = 0; a < alen; a++) { if(strcasestr(suf, ml[a])) return a + 1; }
-
-    return -1;
-}
-
-// Find long format weekday name
-static int fld(const char *suf) {
-
-    unsigned int a = 0;
-    int alen = sizeof(dl) / sizeof(dl[0]);
-
-    for(a = 0; a < alen; a++) { if(strcasestr(suf, dl[a])) return a + 1; }
+    int i = 0;
+    
+    while(*arr[i]) { if(strcasestr(s, arr[i++])) return i; }
 
     return -1;
 }
@@ -257,6 +219,7 @@ static char *mkoname(ymdt *date, flag *f) {
 // Read date from pattern
 static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
 
+
     char buf[SBCH];
 
     memset(date, 0, sizeof(*date));
@@ -277,14 +240,13 @@ static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
             break;
 
             case(ML):
-                date->m = flm(isuf);
+                date->m = arrind(isuf, sizeof(ml[0]), ml);
                 isuf += strlen(ml[(date->m - 1)]);
             break;
 
             case(MS):
                 memcpy(buf, isuf, MSLEN);
-
-                date->m = mnum(buf);
+                date->m = arrind(buf, sizeof(ms[0]), ms);
                 isuf += MSLEN;
             break;
 
@@ -295,13 +257,13 @@ static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
             break;
 
             case(DL):
-                date->d = fld(isuf);
+                date->d = arrind(isuf, sizeof(dl[0]), dl);
                 isuf += strlen(dl[(date->d - 1)]);
             break;
 
             case(DS):
                 memcpy(buf, isuf, DSLEN);
-                date->d = dnum(buf);
+                date->d = arrind(buf, sizeof(ds[0]), ds);
                 isuf += DSLEN;
             break;
 
@@ -348,9 +310,7 @@ static int chkdate(ymdt *date, const char *opat) {
 }
 
 // Autodetect pattern
-static char *adpat(const char *isuf, ymdt *date, const flag *f) {
-
-    char *pat = calloc(PDCH, sizeof(char));
+static char *adpat(const char *isuf, ymdt *date, char *pat, const flag *f) {
 
     int numpat = sizeof(stpat) / sizeof(stpat[0]);
     unsigned int a = 0;
@@ -446,12 +406,14 @@ static void debugprint(const flag *f) {
 // Execute move operation
 static int execute(const char *fn, flag *f, ymdt *date) {
 
+    char pat[PDCH];
+
     snprintf(f->iname, BBCH, "%s%c%s", f->ipath, DDIV, fn);
 
-    if(f->afl) strncpy(f->ipat, adpat(fn + f->iplen, date, f), PDCH);
+    if(f->afl) strncpy(f->ipat, adpat(fn + f->iplen, date, pat, f), PDCH);
     else rpat(fn + f->iplen, f->ipat, date);
 
-    if(chkdate(date, f->opat)) return 1; 
+    if(chkdate(date, f->opat)) return 1;
 
     snprintf(f->oname, BBCH, "%s%c%s", f->opath, DDIV, mkoname(date, f));
     if(f->tfl || f->vfl) printf("%s -> %s\n", f->iname, f->oname);
@@ -506,7 +468,7 @@ int main(int argc, char **argv) {
        !strncmp(f->ipat, f->opat, PDCH))
             usage(f->cmd, "Input and output are exact match", 1, f->vfl);
 
-    // Check if output prefix has been spcified
+    // Check if output prefix has been specified
     if(!f->opref[0]) strncpy(f->opref, f->ipref, PTCH);
 
     // Open input dir
