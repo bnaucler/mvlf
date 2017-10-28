@@ -155,7 +155,7 @@ static int vpat(const char *p) {
 static int arrind(const char *s, const int mxl, const char arr[][mxl]) {
 
     int i = 0;
-    
+
     while(arr[i][0]) { if(strcasestr(s, arr[i++])) return i; }
 
     return -1;
@@ -223,7 +223,7 @@ static int matoisubstr(char *dst, const char **src, const size_t len) {
 
     memcpy(dst, *src, len);
     *src += len;
-    
+
     return matoi(dst);
 }
 
@@ -292,19 +292,23 @@ static void rpat(const char *isuf, const char *ipat, ymdt *date) {
 static int chkdate(const ymdt *date, const char *opat) {
 
     while(*opat) {
-        if((date->y < LCENT || date->y > HCENT + 99) &&
-            (*opat == YL || *opat == YS))
-                return 1;
+        switch(*opat) {
+            case(YL): case(YS):
+                if(date->y < LCENT || date->y > HCENT + 99) return 1;
+            break;
 
-        if((date->m < 1 || date->m > 12) &&
-            (*opat == ML || *opat == MS || *opat == MN))
-                return 1;
+            case(DL): case(DS):
+                if(date->d < 1 || date->d > 7) return 1;
+            break;
 
-        if((date->d < 1 || date->d > 7) && (*opat == DL || *opat == DS))
-                return 1;
+            case(ML): case(MS): case(MN):
+                if(date->m < 1 || date->m > 12) return 1;
+            break;
 
-        if((date->t < 1 || date->t > 31) && (*opat == DT))
-                return 1;
+            case(DT):
+                if(date->t < 1 || date->t > 31) return 1;
+            break;
+        }
 
         opat++;
     }
@@ -312,7 +316,7 @@ static int chkdate(const ymdt *date, const char *opat) {
     return 0;
 }
 
-// Autodetect pattern TODO: Remove false positives
+// Autodetect pattern
 static char *adpat(const char *isuf, ymdt *date, char *pat, const flag *f) {
 
     int numpat = sizeof(stpat) / sizeof(stpat[0]);
@@ -391,16 +395,19 @@ static flag *getflag(const char *cmd) {
 // Return 0 if s has prefix p
 static int strst(const char *s, const char *p) {
 
-    while(*p++ == *s++);
+    while(*p == *s) {
+        p++;
+        s++;
+        if(!*p) return 1;
+    }
 
-    if(!*p) return 1;
-    else return 0;
+    return 0;
 }
 
 // Dump debug data to stdout
 static void debugprint(const flag *f) {
 
-    printf("DEBUG output: ipath: %s, opath: %s, iname: %s, oname: %s, "
+    printf("DEBUG ipath: %s, opath: %s, iname: %s, oname: %s, "
            "ipat: %s, opat: %s, ipref: %s, opref: %s\n",
            f->ipath, f->opath, f->iname, f->oname,
            f->ipat, f->opat, f->ipref, f->opref
@@ -421,6 +428,9 @@ static int execute(const char *fn, flag *f) {
 
     snprintf(f->iname, BBCH, "%s%c%s", f->ipath, DDIV, fn);
     snprintf(f->oname, BBCH, "%s%c%s", f->opath, DDIV, mkoname(on, &date, f));
+
+    // Dump debug data if executed with -vv
+    if(f->vfl > 1) debugprint(f);
 
     if(!f->tfl) rename(f->iname, f->oname);
 
@@ -452,7 +462,6 @@ int main(int argc, char **argv) {
     strncpy(f->opref, basename(f->opath), PTCH);
     strncpy(f->opath, dirname(f->opath), BBCH);
 
-
     // Validate output directory
     if(strncmp(f->ipath, f->opath, BBCH)) {
         od = opendir(f->opath);
@@ -479,12 +488,12 @@ int main(int argc, char **argv) {
     id = opendir(f->ipath);
     if(!id) usage(f->cmd, "Could not read directory", 1, f->vfl);
 
-    // Dump debug data if executed with -vv
-    if(f->vfl > 1) debugprint(f);
-
     // Loop through directory and process files
     while((dir = readdir(id)) != NULL) {
-        if(!strst(dir->d_name, f->ipref)) continue;
+        if(!strst(dir->d_name, f->ipref)) {
+            if(f->vfl > 0) fprintf(stderr, "Ignoring %s\n", dir->d_name);
+            continue;
+        }
 
         if(execute(dir->d_name, f) && f->vfl > -1)
             fprintf(stderr, "Error: could not rename %s\n", f->iname);
