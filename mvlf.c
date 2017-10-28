@@ -171,43 +171,43 @@ static char *mkoname(char *bbuf, ymdt *date, flag *f) {
 
     while(*p) {
         switch(*p) {
+
             case(YL):
                 snprintf(sbuf, SBCH, "%04d", date->y);
-            break;
+                break;
 
             case(YS):
-                if(date->y < HCENT) date->y -= LCENT;
-                else date->y -= HCENT;
+                date->y -= date->y < HCENT ? LCENT : HCENT;
                 snprintf(sbuf, SBCH, "%02d", date->y);
-            break;
+                break;
 
             case(ML):
                 strncpy(sbuf, ml[(date->m-1)], SBCH);
-            break;
+                break;
 
             case(MN):
                 snprintf(sbuf, SBCH, "%02d", date->m);
-            break;
+                break;
 
             case(MS):
                 strncpy(sbuf, ms[(date->m-1)], SBCH);
-            break;
+                break;
 
             case(DL):
                 strncpy(sbuf, dl[(date->d-1)], SBCH);
-            break;
+                break;
 
             case(DS):
                 strncpy(sbuf, ds[(date->d-1)], SBCH);
-            break;
+                break;
 
             case(DT):
                 snprintf(sbuf, SBCH, "%02d", date->t);
-            break;
+                break;
 
             default:
                 snprintf(sbuf, SBCH, "%c", *p);
-            break;
+                break;
         }
 
         if(f->cfl) sbuf[0] = toupper(sbuf[0]);
@@ -219,71 +219,75 @@ static char *mkoname(char *bbuf, ymdt *date, flag *f) {
 }
 
 // Return matoi of substring
-static int matoisubstr(char *dst, const char **src, const size_t len) {
+static int matoisubstr(const char **src, const size_t len) {
 
-    memcpy(dst, *src, len);
+    char buf[(len + 1)];
+
+    memcpy(buf, *src, len);
     *src += len;
+    buf[(len + 1)] = 0;
 
-    return matoi(dst);
+    return matoi(buf);
 }
 
 // Return array index of substring
-static int arrindsubstr(char *dst, const char **src, const int mxl, const char arr[][mxl], const size_t len) {
+static int arrindsubstr(const char **src, const int mxl, const char arr[][mxl],
+    const size_t len) {
 
-    memcpy(dst, *src, len);
+    char buf[(len + 1)];
+
+    memcpy(buf, *src, len);
     *src += len;
+    buf[(len + 1)] = 0;
 
-    return arrind(dst, mxl, ms);
+    return arrind(buf, mxl, ms);
 }
 
 // Read date from pattern
 static void rpat(const char *isuf, const char *ipat, ymdt *date) {
 
-    char buf[SBCH];
-
     while(*ipat) {
         switch(*ipat) {
+
             case(YL):
-                date->y = matoisubstr(buf, &isuf, YLLEN);
-            break;
+                date->y = matoisubstr(&isuf, YLLEN);
+                break;
 
             case(YS):
-                date->y = matoisubstr(buf, &isuf, YSLEN);
+                date->y = matoisubstr(&isuf, YSLEN);
                 date->y += date->y > YBR ? LCENT : HCENT;
-            break;
+                break;
 
             case(ML):
                 date->m = arrind(isuf, sizeof(ml[0]), ml);
                 isuf += strlen(ml[(date->m - 1)]);
-            break;
+                break;
 
             case(MS):
-                date->m = arrindsubstr(buf, &isuf, sizeof(ms[0]), ms, MSLEN);
-            break;
+                date->m = arrindsubstr(&isuf, sizeof(ms[0]), ms, MSLEN);
+                break;
 
             case(MN):
-                date->m = matoisubstr(buf, &isuf, MNLEN);
-            break;
+                date->m = matoisubstr(&isuf, MNLEN);
+                break;
 
             case(DL):
                 date->d = arrind(isuf, sizeof(dl[0]), dl);
                 isuf += strlen(dl[(date->d - 1)]);
-            break;
+                break;
 
             case(DS):
-                date->d = arrindsubstr(buf, &isuf, sizeof(ds[0]), ds, DSLEN);
-            break;
+                date->d = arrindsubstr(&isuf, sizeof(ds[0]), ds, DSLEN);
+                break;
 
             case(DT):
-                date->t = matoisubstr(buf, &isuf, TLEN);
-            break;
+                date->t = matoisubstr(&isuf, TLEN);
+                break;
 
             default:
                 isuf++;
-            break;
+                break;
         }
-
-        memset(buf, 0, SBCH);
         ipat++;
     }
 }
@@ -293,21 +297,22 @@ static int chkdate(const ymdt *date, const char *opat) {
 
     while(*opat) {
         switch(*opat) {
+
             case(YL): case(YS):
                 if(date->y < LCENT || date->y > HCENT + 99) return 1;
-            break;
+                break;
 
             case(DL): case(DS):
                 if(date->d < 1 || date->d > 7) return 1;
-            break;
+                break;
 
             case(ML): case(MS): case(MN):
                 if(date->m < 1 || date->m > 12) return 1;
-            break;
+                break;
 
             case(DT):
                 if(date->t < 1 || date->t > 31) return 1;
-            break;
+                break;
         }
 
         opat++;
@@ -316,7 +321,7 @@ static int chkdate(const ymdt *date, const char *opat) {
     return 0;
 }
 
-// Autodetect pattern
+// Autodetect pattern TODO: Speed up
 static char *adpat(const char *isuf, ymdt *date, char *pat, const flag *f) {
 
     int numpat = sizeof(stpat) / sizeof(stpat[0]);
@@ -396,9 +401,8 @@ static flag *getflag(const char *cmd) {
 static int strst(const char *s, const char *p) {
 
     while(*p == *s) {
-        p++;
+        if(!*++p) return 1;
         s++;
-        if(!*p) return 1;
     }
 
     return 0;
