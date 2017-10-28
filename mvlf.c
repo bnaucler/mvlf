@@ -19,7 +19,7 @@
 #include <libgen.h>
 #include <dirent.h>
 
-#define VER 0.3
+#define VER "0.3A"
 
 #define HCENT 2000
 #define LCENT 1900
@@ -98,14 +98,13 @@ typedef struct flag {
     char opref[PTCH];
 
     int afl, cfl, tfl, vfl;
-    int iplen;
 } flag;
 
 static int usage(char *cmd, char *err, int ret, int vfl) {
 
     if(err[0] && vfl > -1) fprintf(stderr, "Error: %s\n", err);
 
-    printf("Move Logfiles v%.1f\n"
+    printf("mvlf (move logfiles) v%s\n"
            "Usage: %s [-achioqtv] [dir/prefix] [dir/prefix]\n"
            "    -a: Autodetect input pattern (experimental)\n"
            "    -c: Capitalize output suffix initials\n"
@@ -219,24 +218,38 @@ static char *mkoname(char *bbuf, ymdt *date, flag *f) {
     return bbuf;
 }
 
+// Return matoi of substring
+static int matoisubstr(char *dst, const char **src, const size_t len) {
+
+    memcpy(dst, *src, len);
+    *src += len;
+    
+    return matoi(dst);
+}
+
+// Return array index of substring
+static int arrindsubstr(char *dst, const char **src, const int mxl, const char arr[][mxl], const size_t len) {
+
+    memcpy(dst, *src, len);
+    *src += len;
+
+    return arrind(dst, mxl, ms);
+}
+
 // Read date from pattern
-static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
+static void rpat(const char *isuf, const char *ipat, ymdt *date) {
 
     char buf[SBCH];
 
     while(*ipat) {
         switch(*ipat) {
             case(YL):
-                memcpy(buf, isuf, YLLEN);
-                date->y = matoi(buf);
-                isuf += YLLEN;
+                date->y = matoisubstr(buf, &isuf, YLLEN);
             break;
 
             case(YS):
-                memcpy(buf, isuf, YSLEN);
-                date->y = matoi(buf);
+                date->y = matoisubstr(buf, &isuf, YSLEN);
                 date->y += date->y > YBR ? LCENT : HCENT;
-                isuf += YSLEN;
             break;
 
             case(ML):
@@ -245,15 +258,11 @@ static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
             break;
 
             case(MS):
-                memcpy(buf, isuf, MSLEN);
-                date->m = arrind(buf, sizeof(ms[0]), ms);
-                isuf += MSLEN;
+                date->m = arrindsubstr(buf, &isuf, sizeof(ms[0]), ms, MSLEN);
             break;
 
             case(MN):
-                memcpy(buf, isuf, MNLEN);
-                date->m = matoi(buf);
-                isuf += MNLEN;
+                date->m = matoisubstr(buf, &isuf, MNLEN);
             break;
 
             case(DL):
@@ -262,15 +271,11 @@ static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
             break;
 
             case(DS):
-                memcpy(buf, isuf, DSLEN);
-                date->d = arrind(buf, sizeof(ds[0]), ds);
-                isuf += DSLEN;
+                date->d = arrindsubstr(buf, &isuf, sizeof(ds[0]), ds, DSLEN);
             break;
 
             case(DT):
-                memcpy(buf, isuf, TLEN);
-                date->t = matoi(buf);
-                isuf += TLEN;
+                date->t = matoisubstr(buf, &isuf, TLEN);
             break;
 
             default:
@@ -281,12 +286,10 @@ static ymdt *rpat(const char *isuf, const char *ipat, ymdt *date) {
         memset(buf, 0, SBCH);
         ipat++;
     }
-
-    return date;
 }
 
 // Check for data needed to produce output
-static int chkdate(ymdt *date, const char *opat) {
+static int chkdate(const ymdt *date, const char *opat) {
 
     while(*opat) {
         if((date->y < LCENT || date->y > HCENT + 99) &&
@@ -407,12 +410,12 @@ static void debugprint(const flag *f) {
 // Execute move operation
 static int execute(const char *fn, flag *f) {
 
-    char pat[PDCH];
-    char on[MBCH];
+    char pat[PDCH], on[MBCH];
+    int iplen = strlen(f->ipref);
     ymdt date;
 
-    if(f->afl) strncpy(f->ipat, adpat(fn + f->iplen, &date, pat, f), PDCH);
-    else rpat(fn + f->iplen, f->ipat, &date);
+    if(f->afl) strncpy(f->ipat, adpat(fn + iplen, &date, pat, f), PDCH);
+    else rpat(fn + iplen, f->ipat, &date);
 
     if(chkdate(&date, f->opat)) return 1;
 
@@ -449,7 +452,6 @@ int main(int argc, char **argv) {
     strncpy(f->opref, basename(f->opath), PTCH);
     strncpy(f->opath, dirname(f->opath), BBCH);
 
-    f->iplen = strlen(f->ipref);
 
     // Validate output directory
     if(strncmp(f->ipath, f->opath, BBCH)) {

@@ -13,16 +13,16 @@ The binary is installed in /usr/bin unless otherwise specified with DESTDIR
 ## Usage
 Output of `mvlf -h`  
 ```
-Move Logfiles v0.2
+mvlf (move logfiles) v0.3A
 Usage: mvlf [-achioqtv] [dir/prefix] [dir/prefix]
-	-a: Autodetect input pattern (experimental)
-	-c: Capitalize output suffix initials
-	-h: Show this text
-	-i: Input pattern (default: tmY)
-	-o: Output pattern (default: Y-n-t)
-	-q: Decrease verbosity level
-	-t: Test run
-	-v: Increase verbosity level
+    -a: Autodetect input pattern (experimental)
+    -c: Capitalize output suffix initials
+    -h: Show this text
+    -i: Input pattern (default: tmY)
+    -o: Output pattern (default: Y-n-t)
+    -q: Decrease verbosity level
+    -t: Test run
+    -v: Increase verbosity level
 ```
 
 ## Patterns
